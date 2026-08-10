@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = ROOT / "manifests" / "repositories.json"
+ENV_PATH = ROOT / "manifests" / "environments.json"
+PLATFORM_PATH = ROOT / "manifests" / "platforms.json"
 
 
 def load(path: Path):
@@ -19,30 +21,81 @@ def assert_https(value: str) -> None:
     assert parsed.scheme == "https" and parsed.netloc, f"invalid HTTPS URL: {value}"
 
 
+def environment_entry(env: dict, platform_or_family: str) -> dict:
+    return env.get("platforms", {}).get(platform_or_family, {})
+
+
 def main() -> None:
     catalog = load(CATALOG_PATH)
+    environments = load(ENV_PATH)["environments"]
+    platforms = load(PLATFORM_PATH)["platforms"]
+
     assert catalog["schema_version"] == 1
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", catalog["research_date"])
+
+    family_package_managers: dict[str, set[str]] = {}
+    for platform_id, platform in platforms.items():
+        family_package_managers.setdefault(platform["family"], set()).add(platform["package_manager"])
+
+    for env_id, repository in catalog["repositories"].items():
+        assert env_id in environments, f"repository mapping references unknown environment: {env_id}"
+        env = environments[env_id]
+        assert repository["publisher"].strip()
+
+        for family, target in repository["targets"].items():
+            env_entry = environment_entry(env, family)
+            assert env_entry, f"{env_id}/{family}: repository mapping has no environment support entry"
+            assert env_entry["support"] not in {"unsupported", "target-only"}, (
+                f"{env_id}/{family}: repository mapping must not activate unsupported/target-only support"
+            )
+            assert env_entry["strategy"] in {"manual", "vendor-repository"}, (
+                f"{env_id}/{family}: repository mapping expected manual/vendor-repository declaration"
+            )
+            assert target["package_manager"] in family_package_managers.get(family, set()), (
+                f"{env_id}/{family}: package manager {target['package_manager']} does not match platform family"
+            )
+            assert_https(target["documentation"])
+            assert target["tls_verification_required"] is True
+            assert target["package_signature_required"] is True
+            assert target["repository_file"].startswith("/")
+            assert target["repository_content"]
+            assert "sslverify=0" not in target["repository_content"]
+            assert "gpgcheck=0" not in target["repository_content"]
+
+            seen_destinations: set[str] = set()
+            for key in target["keys"]:
+                assert_https(key["url"])
+                assert key["transform"] in {"copy", "gpg-dearmor", "repository-key"}
+                destination = key.get("destination")
+                if key["transform"] in {"copy", "gpg-dearmor"}:
+                    assert destination and destination.startswith("/")
+                if destination:
+                    assert destination not in seen_destinations, f"{env_id}/{family}: duplicate key destination"
+                    seen_destinations.add(destination)
+
+    for env_id, platform_entries in catalog["native_packages"].items():
+        assert env_id in environments, f"native package mapping references unknown environment: {env_id}"
+        env = environments[env_id]
+        for platform_id, native in platform_entries.items():
+            assert platform_id in platforms, f"{env_id}: unknown native-package platform {platform_id}"
+            assert native["package_manager"] == platforms[platform_id]["package_manager"], (
+                f"{env_id}/{platform_id}: native package manager does not match platform manifest"
+            )
+            env_entry = environment_entry(env, platform_id)
+            if not env_entry:
+                env_entry = environment_entry(env, platforms[platform_id]["family"])
+            assert env_entry, f"{env_id}/{platform_id}: native package mapping has no environment support entry"
+            assert env_entry["support"] not in {"unsupported", "target-only"}
+            assert env_entry["strategy"] in {"manual", "package-manager"}
+            assert_https(native["documentation"])
 
     opentofu = catalog["repositories"]["opentofu"]
     assert opentofu["publisher"] == "OpenTofu / Linux Foundation"
     targets = opentofu["targets"]
     assert set(targets) == {"debian", "rhel", "opensuse"}
 
-    for name, target in targets.items():
-        assert_https(target["documentation"])
-        assert target["tls_verification_required"] is True
-        assert target["package_signature_required"] is True
+    for target in targets.values():
         assert target["package"] == "tofu"
-        assert target["repository_file"].startswith("/")
-        assert target["repository_content"]
-        assert "sslverify=0" not in target["repository_content"]
-        assert "gpgcheck=0" not in target["repository_content"]
-        for key in target["keys"]:
-            assert_https(key["url"])
-            assert key["transform"] in {"copy", "gpg-dearmor", "repository-key"}
-            if key["transform"] in {"copy", "gpg-dearmor"}:
-                assert key.get("destination", "").startswith("/")
 
     debian = targets["debian"]
     assert debian["package_manager"] == "apt"
@@ -74,7 +127,7 @@ def main() -> None:
     assert "--insecure" not in serialized
     assert "sslverify=0" not in serialized
 
-    print("validated OpenTofu vendor repository and Fedora native package metadata")
+    print("validated vendor repository/native-package mappings against environment and platform contracts")
 
 
 if __name__ == "__main__":
