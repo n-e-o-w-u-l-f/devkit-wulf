@@ -203,6 +203,14 @@ The initial support matrix was refreshed on **2026-08-10** from primary upstream
 
 For the recommended host/domain setup by platform and environment, see [`docs/platform-strategy.md`](docs/platform-strategy.md). The phased implementation and promotion state is tracked in [`ROADMAP.md`](ROADMAP.md).
 
+## Documentation and community
+
+- [Contributing guide](CONTRIBUTING.md)
+- [Support and issue-reporting guide](SUPPORT.md)
+- [Security policy](SECURITY.md)
+- [Translation policy](docs/TRANSLATIONS.md)
+- [Roadmap](ROADMAP.md)
+
 ## Support the project
 
 If `devkit-wulf` is useful to you, you can support its continued development through PayPal:
@@ -210,6 +218,10 @@ If `devkit-wulf` is useful to you, you can support its continued development thr
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Donate with PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [Donate with PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+Scan or click the QR code to open the same PayPal donation page:
+
+[![PayPal donation QR code](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## License
 
