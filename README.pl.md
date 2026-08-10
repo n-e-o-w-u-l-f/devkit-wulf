@@ -203,6 +203,14 @@ Początkowa macierz wsparcia została odświeżona **2026-08-10** na podstawie p
 
 Zalecana strategia host/domena dla platform i środowisk znajduje się w [`docs/platform-strategy.md`](docs/platform-strategy.md). Etapowy stan implementacji i promocji jest śledzony w [`ROADMAP.md`](ROADMAP.md).
 
+## Dokumentacja i społeczność
+
+- [Zasady współtworzenia](CONTRIBUTING.md)
+- [Wsparcie i zgłaszanie problemów](SUPPORT.md)
+- [Polityka bezpieczeństwa](SECURITY.md)
+- [Polityka tłumaczeń](docs/TRANSLATIONS.md)
+- [Plan rozwoju](ROADMAP.md)
+
 ## Wesprzyj projekt
 
 Jeżeli `devkit-wulf` jest dla Ciebie przydatny, możesz wesprzeć dalszy rozwój przez PayPal:
@@ -210,6 +218,10 @@ Jeżeli `devkit-wulf` jest dla Ciebie przydatny, możesz wesprzeć dalszy rozwó
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Wesprzyj przez PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [Wesprzyj przez PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+Zeskanuj lub kliknij kod QR, aby otworzyć tę samą stronę darowizny PayPal:
+
+[![Kod QR darowizny PayPal](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## Licencja
 
