@@ -203,6 +203,14 @@ tests/                  清单与 CLI 测试
 
 推荐的平台/环境主机与执行域策略见 [`docs/platform-strategy.md`](docs/platform-strategy.md)。分阶段实现与支持提升状态见 [`ROADMAP.md`](ROADMAP.md)。
 
+## 文档与社区
+
+- [贡献指南](CONTRIBUTING.md)
+- [支持与问题报告指南](SUPPORT.md)
+- [安全策略](SECURITY.md)
+- [翻译策略](docs/TRANSLATIONS.md)
+- [路线图](ROADMAP.md)
+
 ## 支持项目
 
 如果 `devkit-wulf` 对你有帮助，可以通过 PayPal 支持项目继续开发：
@@ -210,6 +218,10 @@ tests/                  清单与 CLI 测试
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="通过 PayPal 捐赠" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [通过 PayPal 捐赠](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+扫描或点击二维码即可打开同一个 PayPal 捐赠页面：
+
+[![PayPal 捐赠二维码](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## 许可证
 
