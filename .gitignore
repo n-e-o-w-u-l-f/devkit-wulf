@@ -1,0 +1,17 @@
+# Local state and caches
+.devkit-wulf/
+.state/
+__pycache__/
+*.pyc
+
+# IDE/editor metadata
+.vscode/
+.idea/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Test scratch
+.tmp/
+tmp/
