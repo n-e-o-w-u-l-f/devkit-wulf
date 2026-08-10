@@ -6,26 +6,31 @@ Secure, manifest-driven multi-platform developer environment bootstrapper and or
 
 ## Design
 
-`devkit-wulf` separates:
+`devkit-wulf` separates the responsibilities of:
 
-- host detection;
-- package-manager adapters;
-- environment metadata;
-- installation planning;
-- mutation;
+- host and architecture detection;
+- package-manager selection;
+- environment metadata and support policy;
+- installation strategy;
+- non-mutating planning;
+- mutation and privilege handling;
 - verification;
-- state tracking;
+- state tracking and rollback awareness;
 - CI/security gates.
 
-Support status and execution strategy are modeled independently. A combination may therefore be `support: experimental` while using `strategy: native`, `wsl2`, `vm`, `container`, `source`, or `target-only`.
+Support status and execution strategy are modeled independently. A combination may therefore be `support: experimental` while using `strategy: package-manager`, `winget`, `official-script`, `official-archive`, `source`, `vm`, `container`, `wsl2`, or `xcode`.
 
 ## Quick start
 
 ### Linux / macOS / BSD / Unix
 
 ```sh
-./bootstrap/linux.sh        # Linux
+./bootstrap/linux.sh        # Linux / WSL2
 ./bootstrap/macos.sh        # macOS
+./bootstrap/bsd.sh          # FreeBSD/OpenBSD/NetBSD/DragonFly
+./bootstrap/solaris.sh      # Solaris/illumos
+./bootstrap/aix.sh          # AIX
+
 ./bin/devkit-wulf detect
 ./bin/devkit-wulf list
 ./bin/devkit-wulf plan python
@@ -34,7 +39,7 @@ Support status and execution strategy are modeled independently. A combination m
 ./bin/devkit-wulf doctor
 ```
 
-Use the matching bootstrap script for BSD, Solaris/illumos, or AIX. Bootstraps install only the small parser/tooling prerequisites needed by the orchestrator and do not install developer profiles.
+Bootstraps install only the small parser/tooling prerequisites needed by the orchestrator and do not install developer profiles.
 
 ### Windows PowerShell
 
@@ -49,9 +54,19 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\bin\devkit-wulf.ps1 doctor
 ```
 
+Windows PowerShell 5.1 and PowerShell 7 are accepted by the native orchestrator. WinGet-backed installs are checked before mutation so already-installed exact package IDs are not deliberately reinstalled.
+
 ### WSL2
 
 Run the Linux CLI inside the selected WSL distribution. WSL distributions are detected independently from the Windows host. `devkit-wulf` never silently creates a WSL distribution or converts WSL1 to WSL2.
+
+To inspect a Windows-side WSL change before allowing it:
+
+```powershell
+.\bootstrap\windows.ps1 -PlanWSL2 -Distribution Debian
+```
+
+A WSL feature/distribution mutation additionally requires an elevated shell and `-AllowSystemChange`.
 
 Store Linux-tool projects in the Linux filesystem when working inside WSL2. Keep native-Windows projects on the Windows side; cross-filesystem I/O is intentionally not treated as the default layout.
 
@@ -70,9 +85,13 @@ devkit-wulf install profile:<name> [--experimental]
 devkit-wulf doctor
 ```
 
-`plan` is non-mutating. `install` refuses `unsupported` combinations and requires an explicit experimental opt-in for combinations that have not yet cleared all support gates.
+Native Windows uses the equivalent PowerShell switches `-Experimental` and `-AcceptRemoteScript`.
+
+`plan` is non-mutating. `install` refuses `unsupported` combinations and requires an explicit experimental opt-in for combinations that have not cleared all support gates. Strategies that still lack a verified dedicated adapter fail closed instead of guessing an installer.
 
 ## Initial environments
+
+### Core and languages
 
 - `base`
 - `cpp`
@@ -86,11 +105,22 @@ devkit-wulf doctor
 - `rust`
 - `php`
 - `ruby`
+
+### Editors and IDEs
+
 - `vscode`
 - `visualstudio`
+- `jetbrains`
+- `eclipse`
+
+### Mobile / platform SDKs
+
 - `android`
 - `flutter`
 - `apple`
+
+### Containers / infrastructure
+
 - `docker`
 - `podman`
 - `kubectl`
@@ -108,14 +138,14 @@ devkit-wulf doctor
 - `wsl-stable`
 - `wsl-rolling`
 
-The `full` profile never opts into `experimental` environments by itself.
+The `full` profile never opts into `experimental` environments by itself. Unsupported and target-only entries are never converted into host installations.
 
 ## Platform model
 
-Tier-1 implementation targets:
+Primary implementation targets:
 
 - Windows 11 and serviced Windows 10 clients, x64/ARM64 where the individual environment supports it;
-- WSL2 with Debian, Ubuntu, Arch Linux, openSUSE, Kali;
+- WSL2 with Debian, Ubuntu, Arch Linux, openSUSE and Kali;
 - Debian/Ubuntu/Mint/Kali/Raspberry Pi OS;
 - Arch/Manjaro;
 - Fedora/RHEL/Rocky/Alma;
@@ -128,7 +158,7 @@ Research/validation targets:
 - FreeBSD, OpenBSD, NetBSD, DragonFly BSD;
 - illumos, Oracle Solaris, AIX.
 
-Extended Unix entries remain experimental or target-only until validated on authoritative target systems.
+Extended Unix entries remain experimental or target-only until validated on authoritative target systems. Cross-compilation capability is represented separately from host support.
 
 ## Security model
 
@@ -139,24 +169,31 @@ The implementation follows the gates in [`AGENTS.md`](AGENTS.md). In particular:
 - source provenance is recorded in manifests;
 - package-manager and official-vendor mechanisms are preferred;
 - remote scripts must be downloaded and inspected before execution;
-- checksum/signature mismatches are hard failures;
-- privilege escalation is scoped to individual package-manager operations;
+- checksum/signature mismatches are hard failures where upstream integrity metadata is available;
+- privilege escalation is scoped to operations that require it;
 - `plan` never mutates the host;
-- destructive uninstall is refused where ownership cannot be established safely.
+- destructive uninstall is refused where ownership cannot be established safely;
+- Windows Server exclusions are evaluated independently from Windows client support where upstream requires it.
 
 ## Repository layout
 
 ```text
-bin/                    user-facing CLIs
+AGENTS.md               governance contract and mandatory gates
+bin/                    user-facing POSIX and PowerShell orchestrators
 bootstrap/              minimal host bootstrap scripts
-lib/                    shared orchestration logic
-manifests/              platform/environment catalog and schemas
+manifests/              platform/environment catalog and schema
 profiles/               composable environment selections
 research/               dated upstream support/source research
 scripts/                validation/security helpers
 tests/                  manifest and CLI tests
 .github/workflows/       CI gates
 ```
+
+## Current automation boundary
+
+Package-manager and selected official-script strategies have executable adapters. `official-archive`, product-specific `manual`, source-build, VM and container strategies are represented in plans but intentionally fail closed until their download, integrity, ownership, PATH and uninstall contracts are implemented per product.
+
+This boundary prevents a broad platform matrix from becoming an unverified collection of download commands.
 
 ## Upstream research
 
