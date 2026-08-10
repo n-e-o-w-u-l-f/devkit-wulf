@@ -91,9 +91,9 @@ artifact_state_ready() {
   [ -d "$STATE_DIR" ] || return 1
   [ -w "$STATE_DIR" ] || return 1
   _dw_art_state_file="$STATE_DIR/artifacts.jsonl"
+  [ ! -L "$_dw_art_state_file" ] || return 1
   if [ -e "$_dw_art_state_file" ]; then
     [ -f "$_dw_art_state_file" ] || return 1
-    [ ! -L "$_dw_art_state_file" ] || return 1
     [ -w "$_dw_art_state_file" ] || return 1
   fi
   return 0
