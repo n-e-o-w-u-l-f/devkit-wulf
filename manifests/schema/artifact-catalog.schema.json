@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/artifact-catalog.schema.json",
+  "title": "devkit-wulf verified artifact catalog",
+  "type": "object",
+  "required": ["schema_version", "research_date", "artifacts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "artifacts": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/artifact"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "versionResolver": {
+      "type": "object",
+      "required": ["resolver", "url", "pattern"],
+      "properties": {
+        "resolver": {"const": "text-url"},
+        "url": {"type": "string", "pattern": "^https://"},
+        "pattern": {"type": "string", "minLength": 3}
+      },
+      "additionalProperties": false
+    },
+    "architecture": {
+      "type": "object",
+      "required": ["filename", "url_template", "checksum_url_template"],
+      "properties": {
+        "filename": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+        "url_template": {"type": "string", "pattern": "^https://.*\\{version\\}"},
+        "checksum_url_template": {"type": "string", "pattern": "^https://.*\\{version\\}"}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["destination", "path_directory", "mode", "integrity", "architectures"],
+      "properties": {
+        "destination": {"type": "string", "pattern": "^/"},
+        "path_directory": {"type": "string", "pattern": "^/"},
+        "mode": {"type": "string", "pattern": "^0[0-7]{3}$"},
+        "integrity": {"const": "sha256"},
+        "architectures": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/architecture"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["publisher", "source", "version", "targets"],
+      "properties": {
+        "publisher": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "pattern": "^https://"},
+        "version": {"$ref": "#/$defs/versionResolver"},
+        "targets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/target"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
