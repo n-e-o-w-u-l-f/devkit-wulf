@@ -52,7 +52,7 @@ artifact_validate_version() {
   printf '%s\n' "$_dw_art_candidate" | grep -Eq -- "$_dw_art_pattern"
 }
 
-artifact_resolve_version() {
+artifact_resolve_version() (
   _dw_art_env=$1
   _dw_art_resolver=$(artifact_version_resolver_json "$_dw_art_env")
   [ -n "$_dw_art_resolver" ] || die "no artifact version resolver for $_dw_art_env"
@@ -66,11 +66,9 @@ artifact_resolve_version() {
   trap 'rm -f "$_dw_art_tmp"' EXIT HUP INT TERM
   download_https "$_dw_art_url" "$_dw_art_tmp"
   _dw_art_version=$(tr -d ' \t\r\n' < "$_dw_art_tmp")
-  rm -f "$_dw_art_tmp"
-  trap - EXIT HUP INT TERM
   artifact_validate_version "$_dw_art_version" "$_dw_art_pattern" || die "GATE-03 rejected artifact version value from $_dw_art_url"
   printf '%s' "$_dw_art_version"
-}
+)
 
 artifact_render_template() {
   _dw_art_template=$1
@@ -153,7 +151,7 @@ record_artifact_state() {
     >> "$_dw_art_state_file"
 }
 
-install_verified_artifact() {
+install_verified_artifact() (
   _dw_art_env=$1
   _dw_art_platform=$2
   _dw_art_family=$3
@@ -203,9 +201,7 @@ install_verified_artifact() {
     if [ "$_dw_art_existing" = "$_dw_art_actual" ]; then
       log "$_dw_art_env exact verified artifact already exists at $_dw_art_destination"
       record_artifact_state "$_dw_art_env" "$_dw_art_version" "$_dw_art_url" "$_dw_art_checksum_url" "$_dw_art_destination" "$_dw_art_actual" observed-exact-artifact false
-      rm -rf "$_dw_art_tmpdir"
-      trap - EXIT HUP INT TERM
-      return 0
+      exit 0
     fi
     die "GATE-08 conflict: $_dw_art_destination already exists with a different SHA-256; explicit upgrade/migration is required"
   fi
@@ -219,6 +215,4 @@ install_verified_artifact() {
   [ "$_dw_art_installed" = "$_dw_art_actual" ] || die "GATE-12 installed artifact hash differs from verified staged artifact"
 
   record_artifact_state "$_dw_art_env" "$_dw_art_version" "$_dw_art_url" "$_dw_art_checksum_url" "$_dw_art_destination" "$_dw_art_actual" installed-verified-artifact true
-  rm -rf "$_dw_art_tmpdir"
-  trap - EXIT HUP INT TERM
-}
+)
