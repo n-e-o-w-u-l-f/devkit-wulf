@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/environment-catalog.schema.json",
+  "title": "devkit-wulf environment catalog",
+  "type": "object",
+  "required": ["schema_version", "research_date", "environments"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "research_date": { "type": "string", "format": "date" },
+    "environments": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/environment" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "support": {
+      "type": "string",
+      "enum": ["native", "wsl2", "vm", "container", "source", "target-only", "experimental", "unsupported"]
+    },
+    "strategy": {
+      "type": "string",
+      "enum": ["package-manager", "winget", "official-script", "official-archive", "xcode", "wsl2", "vm", "container", "source", "target-only", "manual", "unsupported"]
+    },
+    "platformEntry": {
+      "type": "object",
+      "required": ["support", "strategy"],
+      "properties": {
+        "support": { "$ref": "#/$defs/support" },
+        "strategy": { "$ref": "#/$defs/strategy" },
+        "architectures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "remoteScript": {
+      "type": "object",
+      "required": ["url", "interpreter"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://" },
+        "interpreter": { "type": "string", "enum": ["sh", "bash", "pwsh"] },
+        "arguments": { "type": "array", "items": { "type": "string" } },
+        "integrity": { "type": "string", "enum": ["upstream-checksum", "upstream-signature", "repository-signature", "transport-and-review"] },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "required": ["name", "category", "platforms", "verify", "sources"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "platforms": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/platformEntry" }
+        },
+        "packages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        },
+        "remove_packages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        },
+        "remote_scripts": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/remoteScript" }
+        },
+        "verify": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^https://" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "cross_targets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "safe_remove": { "type": "boolean", "default": false },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
