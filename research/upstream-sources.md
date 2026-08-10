@@ -13,11 +13,12 @@ This file records primary upstream documentation used to seed the manifest. It i
 
 Key findings:
 
-- Current `wsl --install` flow targets Windows 10 version 2004/build 19041+ or Windows 11; older supported WSL2 scenarios have separate manual requirements.
+- Current `wsl --install` flow targets Windows 10 version 2004/build 19041+ or Windows 11; older WSL2 scenarios have separate manual requirements.
 - WSL distributions must be detected independently; Microsoft documents Debian, Ubuntu, Kali, openSUSE and Arch Linux among available/importable distributions.
 - WSL2 project files should normally live on the same OS filesystem as the tools operating on them to avoid cross-filesystem performance penalties.
+- WSL1-to-WSL2 conversion is a deliberate system change and is not performed implicitly by devkit-wulf.
 
-## VS Code
+## Visual Studio Code
 
 - Requirements: https://code.visualstudio.com/docs/supporting/requirements
 - WSL development: https://code.visualstudio.com/docs/remote/wsl
@@ -27,6 +28,29 @@ Key findings:
 - Desktop VS Code supports serviced 64-bit Windows clients, supported macOS releases and documented Debian/Red-Hat Linux baselines.
 - Windows Server is not a supported VS Code desktop platform.
 - WSL usage is a Windows client + VS Code Server in WSL model; do not install a second full Linux GUI VS Code instance merely to use WSL.
+
+## JetBrains Toolbox
+
+- Installation/system requirements: https://www.jetbrains.com/help/toolbox-app/installation.html
+
+Key findings as of 2026-08-10:
+
+- Toolbox App documents Windows 10 1809+ and Windows 11.
+- Toolbox App 3.5+ requires macOS 14+; the current documentation lists macOS 15 and 26 in the primary supported set.
+- Officially listed Linux distributions include Ubuntu 22.04/24.04 LTS, Fedora 42/43 and Amazon Linux 2023 with GNOME/KDE and required desktop libraries.
+- Linux system compatibility includes x86_64 and arm64, but an individual JetBrains IDE may impose narrower requirements.
+- Installing Toolbox does not itself prove that every JetBrains IDE is supported on the same host.
+
+## Eclipse IDE
+
+- Current packages: https://www.eclipse.org/downloads/packages/
+
+Key findings as of Eclipse IDE 2026-06 R:
+
+- Eclipse publishes installer/package downloads for Windows x86_64/AArch64.
+- Eclipse publishes installer/package downloads for macOS x86_64/AArch64.
+- Eclipse publishes Linux packages for x86_64, AArch64 and riscv64.
+- Eclipse packages now bundle a JRE, but the selected package flavor remains user-selectable and should not be guessed by devkit-wulf.
 
 ## Python
 
@@ -48,6 +72,23 @@ Key findings:
 
 - Node publishes LTS and Current release lines with signed checksum material.
 - Version managers may be suitable for user-local development, but direct remote-script execution must still pass GATE-06.
+
+## Deno
+
+- Installation: https://docs.deno.com/runtime/getting_started/installation/
+
+Policy:
+
+- Official install scripts may be represented as a strategy but are downloaded and inspected before execution rather than piped directly into a shell.
+
+## Bun
+
+- Installation: https://bun.sh/docs/installation
+
+Key findings:
+
+- Bun documents Windows, macOS and Linux installation, including x64/ARM64 combinations and musl builds for Linux where applicable.
+- Official script examples do not bypass devkit-wulf's GATE-06; devkit-wulf downloads and reviews the script artifact first.
 
 ## Go
 
@@ -95,6 +136,26 @@ Key findings:
 - Archive verification documentation explicitly covers Linux, macOS, AIX, Solaris and Windows.
 - Exact JDK/architecture availability must be queried/revalidated per release rather than inferred globally.
 
+## PHP
+
+- Unix installation: https://www.php.net/manual/en/install.unix.php
+- Windows installation: https://www.php.net/manual/en/install.windows.php
+- macOS installation: https://www.php.net/manual/en/install.macosx.php
+
+Key findings:
+
+- PHP supports packaged/source Unix installations and documents Windows separately.
+- macOS no longer ships PHP as part of the operating system; developer installs require an explicit package/source strategy.
+- Solaris/source handling remains a dedicated target path rather than a generic Linux package assumption.
+
+## Ruby
+
+- Installation overview: https://www.ruby-lang.org/en/documentation/installation/
+
+Policy:
+
+- Prefer platform package managers or an explicit version-manager strategy; never destructively replace an OS-managed Ruby.
+
 ## Android Studio / Android SDK
 
 - Installation/system requirements: https://developer.android.com/studio/install
@@ -124,6 +185,7 @@ Key findings:
 - Windows Desktop: https://docs.docker.com/desktop/setup/install/windows-install/
 - macOS Desktop: https://docs.docker.com/desktop/setup/install/mac-install/
 - Linux Desktop: https://docs.docker.com/desktop/setup/install/linux/
+- Linux Engine: https://docs.docker.com/engine/install/
 
 Key findings:
 
@@ -139,6 +201,17 @@ Key findings:
 Key finding:
 
 - Podman is Linux-native; macOS and Windows require a managed Linux virtual machine through `podman machine`.
+
+## kubectl
+
+- Linux installation: https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+- macOS installation: https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/
+- Windows installation: https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/
+
+Key findings:
+
+- Kubernetes publishes per-platform client installation paths and checksum verification for standalone binaries.
+- `kubectl` should normally stay within one minor version of the target Kubernetes control plane; blindly installing the newest client is not always the optimal setup.
 
 ## OpenTofu
 
