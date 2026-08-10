@@ -131,11 +131,14 @@ printf '%s\n' "$plan" | grep 'path_mutation: none' >/dev/null
 install_verified_artifact fixture linux linux amd64
 [ -x "$TEST_ROOT/bin/fixture-tool" ]
 [ "$(sha256_file "$TEST_ROOT/bin/fixture-tool")" = "$EXPECTED" ]
-jq -e 'select(.environment == "fixture" and .publisher == "Fixture Publisher" and .action == "installed-verified-artifact" and .created == true and .path_mutation == false)' "$STATE_DIR/artifacts.jsonl" >/dev/null
+STATE_LOG="$STATE_DIR/artifacts.jsonl"
+[ "$(sed -n '1p' "$STATE_LOG" | jq -r '.action')" = mutation-intent ]
+[ "$(sed -n '2p' "$STATE_LOG" | jq -r '.action')" = installed-verified-artifact ]
+sed -n '2p' "$STATE_LOG" | jq -e 'select(.environment == "fixture" and .publisher == "Fixture Publisher" and .created == true and .path_mutation == false)' >/dev/null
 
 # Exact second installation is idempotent and records observation rather than mutation.
 install_verified_artifact fixture linux linux amd64
-tail -n 1 "$STATE_DIR/artifacts.jsonl" | jq -e 'select(.action == "observed-exact-artifact" and .created == false)' >/dev/null
+tail -n 1 "$STATE_LOG" | jq -e 'select(.action == "observed-exact-artifact" and .created == false)' >/dev/null
 
 # Symlink destinations are an explicit conflict even when they resolve to the same payload.
 rm -f "$TEST_ROOT/bin/fixture-tool"
@@ -153,5 +156,22 @@ if install_verified_artifact fixture linux linux amd64 >/dev/null 2>&1; then
   exit 1
 fi
 [ "$(cat "$TEST_ROOT/bin/fixture-tool")" = different ]
+
+# State logging rejects both live and broken symlinks before mutation.
+STATE_BACKUP="$TEST_ROOT/artifacts-state-backup.jsonl"
+mv "$STATE_LOG" "$STATE_BACKUP"
+ln -s "$STATE_BACKUP" "$STATE_LOG"
+if artifact_state_ready; then
+  echo "state symlink unexpectedly accepted" >&2
+  exit 1
+fi
+rm -f "$STATE_LOG"
+ln -s "$TEST_ROOT/does-not-exist.jsonl" "$STATE_LOG"
+if artifact_state_ready; then
+  echo "broken state symlink unexpectedly accepted" >&2
+  exit 1
+fi
+rm -f "$STATE_LOG"
+mv "$STATE_BACKUP" "$STATE_LOG"
 
 echo "artifact helper and isolated install tests passed"
