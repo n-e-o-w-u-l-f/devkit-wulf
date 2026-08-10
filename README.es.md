@@ -203,6 +203,14 @@ La matriz inicial de compatibilidad se actualizó el **2026-08-10** a partir de 
 
 La estrategia host/dominio recomendada por plataforma y entorno se encuentra en [`docs/platform-strategy.md`](docs/platform-strategy.md). El estado por fases de implementación y promoción se sigue en [`ROADMAP.md`](ROADMAP.md).
 
+## Documentación y comunidad
+
+- [Guía para contribuir](CONTRIBUTING.md)
+- [Guía de soporte y reporte de problemas](SUPPORT.md)
+- [Política de seguridad](SECURITY.md)
+- [Política de traducciones](docs/TRANSLATIONS.md)
+- [Hoja de ruta](ROADMAP.md)
+
 ## Apoya el proyecto
 
 Si `devkit-wulf` te resulta útil, puedes apoyar su desarrollo continuo mediante PayPal:
@@ -210,6 +218,10 @@ Si `devkit-wulf` te resulta útil, puedes apoyar su desarrollo continuo mediante
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Donar con PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [Donar con PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+Escanea o haz clic en el código QR para abrir la misma página de donación de PayPal:
+
+[![Código QR de donación PayPal](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## Licencia
 
