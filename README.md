@@ -1,5 +1,7 @@
 # devkit-wulf
 
+[English](README.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Polski](README.pl.md) | [简体中文](README.cn.md) | [Русский](README.ru.md) | [Español](README.es.md)
+
 Secure, manifest-driven multi-platform developer environment bootstrapper and orchestrator for Windows, WSL2, Linux, macOS, BSD and explicitly researched extended Unix targets.
 
 > **Status:** pre-1.0 bootstrap. Platform/environment combinations remain `experimental` until their required CI or target-system gates pass. The repository intentionally does not advertise unverified combinations as supported.
@@ -198,6 +200,16 @@ This boundary prevents a broad platform matrix from becoming an unverified colle
 ## Upstream research
 
 The initial support matrix was refreshed on **2026-08-10** from primary upstream documentation. See [`research/upstream-sources.md`](research/upstream-sources.md). Runtime versions and EOL information are intentionally not assumed permanent; manifests carry research dates and must be revalidated before version-sensitive changes.
+
+For the recommended host/domain setup by platform and environment, see [`docs/platform-strategy.md`](docs/platform-strategy.md). The phased implementation and promotion state is tracked in [`ROADMAP.md`](ROADMAP.md).
+
+## Support the project
+
+If `devkit-wulf` is useful to you, you can support its continued development through PayPal:
+
+<a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Donate with PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
+
+[Donate with PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## License
 
