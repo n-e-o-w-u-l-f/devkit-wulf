@@ -20,6 +20,7 @@ jobs:
         run: |
           python tests/validate_manifests.py
           python tests/validate_artifacts.py
+          python tests/validate_repositories.py
       - name: Validate JSON Schemas
         run: |
           python -m pip install --disable-pip-version-check jsonschema
@@ -32,6 +33,7 @@ jobs:
           pairs = [
               ('manifests/schema/environment-catalog.schema.json', 'manifests/environments.json'),
               ('manifests/schema/artifact-catalog.schema.json', 'manifests/artifacts.json'),
+              ('manifests/schema/repository-catalog.schema.json', 'manifests/repositories.json'),
           ]
           for schema_path, catalog_path in pairs:
               schema = json.loads((root / schema_path).read_text())
@@ -55,6 +57,7 @@ jobs:
         run: |
           sh tests/test_cli.sh
           sh tests/test_artifacts.sh
+          sh tests/test_repositories.sh
 
   posix-macos:
     runs-on: macos-latest
@@ -70,6 +73,7 @@ jobs:
         run: |
           sh tests/test_cli.sh
           sh tests/test_artifacts.sh
+          sh tests/test_repositories.sh
 
   powershell-windows:
     runs-on: windows-latest
