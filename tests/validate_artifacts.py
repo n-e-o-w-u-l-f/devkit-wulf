@@ -44,6 +44,7 @@ def main() -> None:
             assert target["path_directory"].startswith("/")
             assert re.fullmatch(r"0[0-7]{3}", target["mode"])
             assert target["integrity"] == "sha256"
+            assert isinstance(target["privileged"], bool)
             assert target["architectures"]
             for arch, entry in target["architectures"].items():
                 assert arch in ALLOWED_ARCHES
@@ -56,6 +57,7 @@ def main() -> None:
     kubectl = catalog["artifacts"]["kubectl"]
     assert kubectl["version"]["url"] == "https://dl.k8s.io/release/stable.txt"
     linux = kubectl["targets"]["linux"]
+    assert linux["privileged"] is True
     assert set(linux["architectures"]) == {"amd64", "arm64"}
     for arch in ("amd64", "arm64"):
         assert linux["architectures"][arch]["url_template"] == f"https://dl.k8s.io/release/{{version}}/bin/linux/{arch}/kubectl"
