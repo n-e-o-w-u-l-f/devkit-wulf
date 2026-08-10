@@ -1,0 +1,450 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+ENV_MANIFEST="$ROOT_DIR/manifests/environments.json"
+PLATFORM_MANIFEST="$ROOT_DIR/manifests/platforms.json"
+PROFILE_MANIFEST="$ROOT_DIR/profiles/profiles.json"
+STATE_DIR=${DEVKIT_WULF_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/devkit-wulf}
+STATE_FILE="$STATE_DIR/state.jsonl"
+
+log() { printf '%s\n' "[devkit-wulf] $*"; }
+warn() { printf '%s\n' "[devkit-wulf] WARNING: $*" >&2; }
+die() { printf '%s\n' "[devkit-wulf] ERROR: $*" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+require_jq() {
+  have jq || die "jq is required for manifest parsing. Run the matching bootstrap script first."
+  jq -e . "$ENV_MANIFEST" >/dev/null || die "environment manifest is invalid JSON"
+  jq -e . "$PLATFORM_MANIFEST" >/dev/null || die "platform manifest is invalid JSON"
+  jq -e . "$PROFILE_MANIFEST" >/dev/null || die "profile manifest is invalid JSON"
+}
+
+normalize_arch() {
+  case "$(uname -m 2>/dev/null || printf unknown)" in
+    x86_64|amd64) printf amd64 ;;
+    aarch64|arm64) printf arm64 ;;
+    armv7*|armv6*) printf armv7 ;;
+    riscv64) printf riscv64 ;;
+    ppc64le) printf ppc64le ;;
+    ppc64) printf ppc64 ;;
+    s390x) printf s390x ;;
+    sparc64|sparcv9) printf sparc64 ;;
+    *) uname -m 2>/dev/null || printf unknown ;;
+  esac
+}
+
+read_os_release_value() {
+  key=$1
+  [ -r /etc/os-release ] || return 1
+  # Values in os-release may be quoted. shellcheck source=/dev/null
+  ( . /etc/os-release; eval "printf '%s' \"\${$key:-}\"" )
+}
+
+normalize_linux_platform() {
+  id=$(read_os_release_value ID 2>/dev/null || printf linux)
+  case "$id" in
+    debian) printf debian ;;
+    ubuntu) printf ubuntu ;;
+    linuxmint|mint) printf linuxmint ;;
+    kali) printf kali ;;
+    raspbian) printf raspbian ;;
+    arch) printf arch ;;
+    manjaro) printf manjaro ;;
+    fedora) printf fedora ;;
+    rhel|centos) printf rhel ;;
+    rocky) printf rocky ;;
+    almalinux) printf almalinux ;;
+    opensuse-leap|opensuse) printf opensuse-leap ;;
+    opensuse-tumbleweed) printf opensuse-tumbleweed ;;
+    alpine) printf alpine ;;
+    *) printf '%s' "$id" ;;
+  esac
+}
+
+detect_platform() {
+  os=$(uname -s 2>/dev/null || printf unknown)
+  case "$os" in
+    Linux) normalize_linux_platform ;;
+    Darwin) printf macos ;;
+    FreeBSD) printf freebsd ;;
+    OpenBSD) printf openbsd ;;
+    NetBSD) printf netbsd ;;
+    DragonFly) printf dragonfly ;;
+    AIX) printf aix ;;
+    SunOS)
+      if { [ -r /etc/release ] && grep -Eqi 'illumos|omnios|openindiana|smartos' /etc/release; } || [ -d /system/volatile ]; then
+        printf illumos
+      else
+        printf solaris
+      fi
+      ;;
+    MINGW*|MSYS*|CYGWIN*) die "Use bin/devkit-wulf.ps1 for native Windows. Use this POSIX CLI inside WSL2." ;;
+    *) printf unknown ;;
+  esac
+}
+
+detect_domain() {
+  if [ "$(uname -s 2>/dev/null || true)" = Linux ] && { [ -n "${WSL_INTEROP:-}" ] || grep -Eqi 'microsoft|wsl' /proc/version 2>/dev/null; }; then
+    printf wsl2
+  else
+    printf native
+  fi
+}
+
+detect_package_manager() {
+  for pm in apt-get pacman dnf zypper apk brew pkg pkg_add pkgin; do
+    if have "$pm"; then
+      case "$pm" in apt-get) printf apt ;; *) printf '%s' "$pm" ;; esac
+      return 0
+    fi
+  done
+  printf none
+}
+
+platform_family() {
+  platform=$1
+  jq -r --arg p "$platform" '.platforms[$p].family // $p' "$PLATFORM_MANIFEST"
+}
+
+platform_known() {
+  platform=$1
+  jq -e --arg p "$platform" '.platforms[$p] != null' "$PLATFORM_MANIFEST" >/dev/null 2>&1
+}
+
+show_detection() {
+  require_jq
+  platform=$(detect_platform)
+  family=$(platform_family "$platform")
+  arch=$(normalize_arch)
+  domain=$(detect_domain)
+  pm=$(detect_package_manager)
+  kernel=$(uname -sr 2>/dev/null || printf unknown)
+  shell=${SHELL:-unknown}
+  version=$(read_os_release_value VERSION_ID 2>/dev/null || sw_vers -productVersion 2>/dev/null || uname -v 2>/dev/null || printf unknown)
+  if [ "$(id -u 2>/dev/null || printf 99999)" -eq 0 ]; then privilege=root; elif have sudo; then privilege=sudo-available; elif have doas; then privilege=doas-available; else privilege=unprivileged; fi
+  if have df; then disk=$(df -Pk . 2>/dev/null | awk 'NR==2 {print $4 " KiB"}' || printf unknown); else disk=unknown; fi
+  printf 'platform=%s\nfamily=%s\ndomain=%s\nversion=%s\narchitecture=%s\nkernel=%s\nshell=%s\npackage_manager=%s\nprivilege=%s\navailable_disk=%s\n' \
+    "$platform" "$family" "$domain" "$version" "$arch" "$kernel" "$shell" "$pm" "$privilege" "$disk"
+  if ! platform_known "$platform"; then warn "platform '$platform' is not in manifests/platforms.json and will fail closed"; fi
+  if [ "$domain" = wsl2 ]; then
+    log "WSL2 detected. Linux-tool projects should normally live inside the WSL filesystem, not /mnt/<drive>."
+  fi
+}
+
+resolve_entry() {
+  env_id=$1 platform=$2 family=$3
+  jq -c --arg e "$env_id" --arg p "$platform" --arg f "$family" \
+    '.environments[$e].platforms[$p] // .environments[$e].platforms[$f] // {support:"unsupported",strategy:"unsupported"}' "$ENV_MANIFEST"
+}
+
+environment_exists() {
+  jq -e --arg e "$1" '.environments[$e] != null' "$ENV_MANIFEST" >/dev/null 2>&1
+}
+
+arch_allowed() {
+  entry=$1 arch=$2
+  count=$(printf '%s' "$entry" | jq '.architectures // [] | length')
+  [ "$count" -eq 0 ] && return 0
+  printf '%s' "$entry" | jq -e --arg a "$arch" '(.architectures // []) | index($a) != null' >/dev/null
+}
+
+package_lines() {
+  env_id=$1 pm=$2
+  jq -r --arg e "$env_id" --arg pm "$pm" '.environments[$e].packages[$pm][]? // empty' "$ENV_MANIFEST"
+}
+
+verify_lines() {
+  env_id=$1
+  jq -r --arg e "$env_id" '.environments[$e].verify[]' "$ENV_MANIFEST"
+}
+
+source_lines() {
+  env_id=$1
+  jq -r --arg e "$env_id" '.environments[$e].sources[]' "$ENV_MANIFEST"
+}
+
+remote_script_json() {
+  env_id=$1 domain=$2
+  key=unix
+  [ "$domain" = windows ] && key=windows
+  jq -c --arg e "$env_id" --arg k "$key" '.environments[$e].remote_scripts[$k] // empty' "$ENV_MANIFEST"
+}
+
+plan_environment() {
+  env_id=$1
+  require_jq
+  environment_exists "$env_id" || die "unknown environment: $env_id"
+  platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager)
+  entry=$(resolve_entry "$env_id" "$platform" "$family")
+  support=$(printf '%s' "$entry" | jq -r '.support')
+  strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+  if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
+  printf 'environment=%s\nplatform=%s\nfamily=%s\ndomain=%s\narchitecture=%s\nsupport=%s\nstrategy=%s\npackage_manager=%s\n' \
+    "$env_id" "$platform" "$family" "$domain" "$arch" "$support" "$strategy" "$pm"
+  notes=$(printf '%s' "$entry" | jq -r '.notes // empty')
+  [ -n "$notes" ] && printf 'notes=%s\n' "$notes"
+  printf 'packages:\n'
+  packages=$(package_lines "$env_id" "$pm" || true)
+  if [ -n "$packages" ]; then printf '%s\n' "$packages" | sed 's/^/  - /'; else printf '  - none mapped for %s\n' "$pm"; fi
+  script=$(remote_script_json "$env_id" "$domain" || true)
+  if [ -n "$script" ]; then
+    printf 'remote_script:\n  url: %s\n  integrity: %s\n' "$(printf '%s' "$script" | jq -r '.url')" "$(printf '%s' "$script" | jq -r '.integrity // "transport-and-review"')"
+  fi
+  printf 'verification:\n'; verify_lines "$env_id" | sed 's/^/  - /'
+  printf 'sources:\n'; source_lines "$env_id" | sed 's/^/  - /'
+  printf 'mutates_host=false\n'
+}
+
+privileged() {
+  if [ "$(id -u)" -eq 0 ]; then "$@"; elif have sudo; then sudo "$@"; elif have doas; then doas "$@"; else die "privilege required for: $* (neither sudo nor doas is available)"; fi
+}
+
+install_packages() {
+  pm=$1; shift
+  [ "$#" -gt 0 ] || die "no packages mapped for package manager '$pm'"
+  case "$pm" in
+    apt) privileged apt-get update; privileged apt-get install -y "$@" ;;
+    pacman) privileged pacman -S --needed --noconfirm "$@" ;;
+    dnf) privileged dnf install -y "$@" ;;
+    zypper) privileged zypper --non-interactive install "$@" ;;
+    apk) privileged apk add "$@" ;;
+    brew) brew install "$@" ;;
+    pkg) privileged pkg install -y "$@" ;;
+    pkg_add) privileged pkg_add "$@" ;;
+    pkgin) privileged pkgin -y install "$@" ;;
+    *) die "unsupported package manager adapter: $pm" ;;
+  esac
+}
+
+sha256_file() {
+  file=$1
+  if have sha256sum; then sha256sum "$file" | awk '{print $1}'; elif have shasum; then shasum -a 256 "$file" | awk '{print $1}'; elif have digest; then digest -a sha256 "$file"; else printf unavailable; fi
+}
+
+scan_remote_script() {
+  file=$1
+  [ -s "$file" ] || die "downloaded script is empty"
+  if grep -Eiq '(^|[;&|[:space:]])(mkfs([.]|[[:space:]])|fdisk[[:space:]]|parted[[:space:]]|format[[:space:]]|dd[[:space:]].*of=/dev/|rm[[:space:]]+-rf[[:space:]]+/(($)|[[:space:]])|chmod[[:space:]]+-R[[:space:]]+777[[:space:]]+/)' "$file"; then
+    die "GATE-06 blocked remote script: destructive command pattern detected"
+  fi
+  if grep -Eiq '(curl|wget|Invoke-WebRequest|irm).{0,120}[|].{0,40}(sh|bash|zsh|iex|Invoke-Expression)' "$file"; then
+    warn "remote script contains nested download-to-execution behavior; review is required"
+    return 2
+  fi
+  return 0
+}
+
+download_https() {
+  url=$1 dest=$2
+  case "$url" in https://*) ;; *) die "GATE-04 blocked non-HTTPS URL: $url" ;; esac
+  if have curl; then curl --fail --location --proto '=https' --tlsv1.2 --output "$dest" "$url"
+  elif have wget; then wget --https-only -O "$dest" "$url"
+  else die "curl or wget is required to download an official installer"; fi
+}
+
+install_remote_script() {
+  env_id=$1 domain=$2 accept_remote=$3
+  [ "$accept_remote" = true ] || die "official-script strategy requires explicit --accept-remote-script after reviewing the plan"
+  script=$(remote_script_json "$env_id" "$domain" || true)
+  [ -n "$script" ] || die "no remote script metadata for $env_id/$domain"
+  url=$(printf '%s' "$script" | jq -r '.url')
+  interpreter=$(printf '%s' "$script" | jq -r '.interpreter')
+  integrity=$(printf '%s' "$script" | jq -r '.integrity // "transport-and-review"')
+  tmp=${TMPDIR:-/tmp}/devkit-wulf-script-$$
+  trap 'rm -f "$tmp"' EXIT HUP INT TERM
+  download_https "$url" "$tmp"
+  hash=$(sha256_file "$tmp")
+  log "GATE-04 source: $url"
+  log "GATE-05/06 downloaded SHA-256: $hash; integrity policy: $integrity"
+  if scan_remote_script "$tmp"; then :; else
+    rc=$?
+    [ "$rc" -eq 2 ] && die "GATE-06 requires manual review because nested remote execution was detected"
+    exit "$rc"
+  fi
+  args=$(printf '%s' "$script" | jq -r '.arguments[]? // empty' | tr '\n' ' ')
+  case "$interpreter" in
+    sh) # shellcheck disable=SC2086
+        sh "$tmp" $args ;;
+    bash) have bash || die "bash required by upstream installer"; # shellcheck disable=SC2086
+          bash "$tmp" $args ;;
+    *) die "remote interpreter '$interpreter' is not valid for POSIX host" ;;
+  esac
+  rm -f "$tmp"; trap - EXIT HUP INT TERM
+}
+
+verify_environment() {
+  env_id=$1
+  require_jq
+  environment_exists "$env_id" || die "unknown environment: $env_id"
+  failed=0
+  while IFS= read -r cmd; do
+    [ -n "$cmd" ] || continue
+    printf '[verify] %s\n' "$cmd"
+    if sh -c "$cmd"; then :; else failed=$((failed + 1)); fi
+  done <<EOF
+$(verify_lines "$env_id")
+EOF
+  [ "$failed" -eq 0 ] || { warn "$failed verification command(s) failed for $env_id"; return 1; }
+  return 0
+}
+
+record_state() {
+  env_id=$1 strategy=$2 platform=$3 arch=$4 domain=$5 action=$6
+  mkdir -p "$STATE_DIR"
+  timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  jq -nc --arg t "$timestamp" --arg e "$env_id" --arg s "$strategy" --arg p "$platform" --arg a "$arch" --arg d "$domain" --arg x "$action" \
+    '{timestamp:$t,environment:$e,strategy:$s,platform:$p,architecture:$a,domain:$d,action:$x}' >> "$STATE_FILE"
+}
+
+install_environment() {
+  env_id=$1 experimental=$2 accept_remote=$3
+  require_jq
+  environment_exists "$env_id" || die "unknown environment: $env_id"
+  platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager)
+  entry=$(resolve_entry "$env_id" "$platform" "$family")
+  support=$(printf '%s' "$entry" | jq -r '.support'); strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+  if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
+  case "$support" in
+    unsupported) die "$env_id is unsupported on $platform/$arch" ;;
+    target-only) die "$env_id is target-only on $platform; cross-compilation is not a host installation" ;;
+    experimental) [ "$experimental" = true ] || die "$env_id on $platform is experimental; inspect 'plan' and pass --experimental to opt in" ;;
+  esac
+  if verify_environment "$env_id" >/dev/null 2>&1; then
+    log "$env_id already passes verification; no mutation performed"
+    record_state "$env_id" "$strategy" "$platform" "$arch" "$domain" observed-existing
+    return 0
+  fi
+  case "$strategy" in
+    package-manager)
+      [ "$pm" != none ] || die "no supported package manager detected"
+      packages=$(package_lines "$env_id" "$pm" || true)
+      [ -n "$packages" ] || die "no package mapping for $env_id using $pm; refusing to guess"
+      # Package identifiers in manifests intentionally contain no whitespace except option tokens.
+      # shellcheck disable=SC2086
+      install_packages "$pm" $packages
+      ;;
+    official-script)
+      install_remote_script "$env_id" "$domain" "$accept_remote"
+      ;;
+    xcode)
+      [ "$platform" = macos ] || die "Xcode strategy is macOS-only"
+      if xcode-select -p >/dev/null 2>&1; then log "Xcode Command Line Tools are already selected"; else xcode-select --install; fi
+      ;;
+    official-archive|manual|source|vm|container|wsl2)
+      die "strategy '$strategy' requires a dedicated adapter that is not yet safe to automate for $env_id; plan output contains the researched path"
+      ;;
+    winget) die "winget strategy requires native PowerShell CLI (bin/devkit-wulf.ps1)" ;;
+    *) die "strategy '$strategy' is not installable" ;;
+  esac
+  verify_environment "$env_id" || die "GATE-12 verification failed after installation"
+  record_state "$env_id" "$strategy" "$platform" "$arch" "$domain" installed-and-verified
+  log "$env_id installed and verified"
+}
+
+remove_environment() {
+  env_id=$1
+  require_jq
+  environment_exists "$env_id" || die "unknown environment: $env_id"
+  safe=$(jq -r --arg e "$env_id" '.environments[$e].safe_remove // false' "$ENV_MANIFEST")
+  [ "$safe" = true ] || die "safe removal is not established for $env_id; GATE-15 refuses destructive uninstall"
+  die "safe removal adapter not implemented yet"
+}
+
+list_environments() {
+  require_jq
+  mode=${1:-all}; requested_platform=${2:-}
+  platform=${requested_platform:-$(detect_platform)}; family=$(platform_family "$platform"); arch=$(normalize_arch)
+  for env_id in $(jq -r '.environments | keys[]' "$ENV_MANIFEST"); do
+    entry=$(resolve_entry "$env_id" "$platform" "$family")
+    support=$(printf '%s' "$entry" | jq -r '.support')
+    strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+    if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
+    if [ "$mode" = supported ]; then
+      case "$support" in experimental|unsupported|target-only) continue ;; esac
+    fi
+    printf '%-14s %-13s %s\n' "$env_id" "$support" "$strategy"
+  done
+}
+
+install_profile() {
+  profile=$1 experimental=$2 accept_remote=$3
+  require_jq
+  jq -e --arg p "$profile" '.profiles[$p] != null' "$PROFILE_MANIFEST" >/dev/null || die "unknown profile: $profile"
+  failed=0
+  for env_id in $(jq -r --arg p "$profile" '.profiles[$p].environments[]' "$PROFILE_MANIFEST"); do
+    log "profile:$profile -> $env_id"
+    if install_environment "$env_id" "$experimental" "$accept_remote"; then :; else failed=$((failed + 1)); fi
+  done
+  [ "$failed" -eq 0 ] || die "$failed environment(s) failed in profile:$profile"
+}
+
+doctor() {
+  require_jq
+  show_detection
+  platform=$(detect_platform); domain=$(detect_domain); pm=$(detect_package_manager)
+  [ "$platform" != unknown ] || die "host platform could not be identified"
+  [ "$pm" != none ] || warn "no known package manager detected; only dedicated non-package strategies can run"
+  mkdir -p "$STATE_DIR" 2>/dev/null || die "state directory is not writable: $STATE_DIR"
+  [ -w "$STATE_DIR" ] || die "state directory is not writable: $STATE_DIR"
+  if [ "$domain" = wsl2 ]; then
+    case "$(pwd -P)" in /mnt/[a-zA-Z]/*) warn "current project is on a Windows-mounted filesystem; Linux-side storage is recommended for WSL2 tooling" ;; esac
+  fi
+  log "manifest JSON parse: PASS"
+  log "state directory: PASS ($STATE_DIR)"
+  log "doctor completed"
+}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  devkit-wulf detect
+  devkit-wulf list [--supported] [--platform PLATFORM]
+  devkit-wulf plan ENVIRONMENT
+  devkit-wulf install ENVIRONMENT|profile:NAME [--experimental] [--accept-remote-script]
+  devkit-wulf verify ENVIRONMENT
+  devkit-wulf remove ENVIRONMENT
+  devkit-wulf doctor
+EOF
+}
+
+main() {
+  [ "$#" -gt 0 ] || { usage; exit 2; }
+  cmd=$1; shift
+  case "$cmd" in
+    detect) [ "$#" -eq 0 ] || die "detect takes no arguments"; show_detection ;;
+    list)
+      mode=all; platform=
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --supported) mode=supported; shift ;;
+          --platform) [ "$#" -ge 2 ] || die "--platform needs a value"; platform=$2; shift 2 ;;
+          *) die "unknown list option: $1" ;;
+        esac
+      done
+      list_environments "$mode" "$platform"
+      ;;
+    plan) [ "$#" -eq 1 ] || die "plan requires one environment"; plan_environment "$1" ;;
+    verify) [ "$#" -eq 1 ] || die "verify requires one environment"; verify_environment "$1" ;;
+    remove) [ "$#" -eq 1 ] || die "remove requires one environment"; remove_environment "$1" ;;
+    install)
+      [ "$#" -ge 1 ] || die "install requires an environment or profile"
+      target=$1; shift; experimental=false; accept_remote=false
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --experimental) experimental=true ;;
+          --accept-remote-script) accept_remote=true ;;
+          *) die "unknown install option: $1" ;;
+        esac
+        shift
+      done
+      case "$target" in profile:*) install_profile "${target#profile:}" "$experimental" "$accept_remote" ;; *) install_environment "$target" "$experimental" "$accept_remote" ;; esac
+      ;;
+    doctor) [ "$#" -eq 0 ] || die "doctor takes no arguments"; doctor ;;
+    -h|--help|help) usage ;;
+    *) usage; die "unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"
