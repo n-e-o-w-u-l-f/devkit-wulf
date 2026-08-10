@@ -14,7 +14,7 @@ scan_for() {
 }
 
 # Scan executable implementation, not documentation that intentionally discusses forbidden examples.
-TARGETS="$ROOT/bin $ROOT/bootstrap"
+TARGETS="$ROOT/bin $ROOT/bootstrap $ROOT/lib"
 
 scan_for 'curl[^\n|]*\|[[:space:]]*(sh|bash|zsh)' 'direct curl-to-shell execution' $TARGETS
 scan_for '(irm|Invoke-RestMethod)[^\n|]*\|[[:space:]]*(iex|Invoke-Expression)' 'direct PowerShell download-to-execution' $TARGETS

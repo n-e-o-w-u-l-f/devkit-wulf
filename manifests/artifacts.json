@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "artifacts": {
+    "kubectl": {
+      "publisher": "Kubernetes SIG CLI",
+      "source": "https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/",
+      "version": {
+        "resolver": "text-url",
+        "url": "https://dl.k8s.io/release/stable.txt",
+        "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+      },
+      "targets": {
+        "linux": {
+          "destination": "/usr/local/bin/kubectl",
+          "path_directory": "/usr/local/bin",
+          "mode": "0755",
+          "integrity": "sha256",
+          "privileged": true,
+          "architectures": {
+            "amd64": {
+              "filename": "kubectl",
+              "url_template": "https://dl.k8s.io/release/{version}/bin/linux/amd64/kubectl",
+              "checksum_url_template": "https://dl.k8s.io/release/{version}/bin/linux/amd64/kubectl.sha256"
+            },
+            "arm64": {
+              "filename": "kubectl",
+              "url_template": "https://dl.k8s.io/release/{version}/bin/linux/arm64/kubectl",
+              "checksum_url_template": "https://dl.k8s.io/release/{version}/bin/linux/arm64/kubectl.sha256"
+            }
+          }
+        }
+      }
+    }
+  }
+}

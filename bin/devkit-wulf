@@ -6,8 +6,12 @@ ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_MANIFEST="$ROOT_DIR/manifests/environments.json"
 PLATFORM_MANIFEST="$ROOT_DIR/manifests/platforms.json"
 PROFILE_MANIFEST="$ROOT_DIR/profiles/profiles.json"
+ARTIFACT_MANIFEST=${DEVKIT_WULF_ARTIFACT_MANIFEST:-"$ROOT_DIR/manifests/artifacts.json"}
 STATE_DIR=${DEVKIT_WULF_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/devkit-wulf}
 STATE_FILE="$STATE_DIR/state.jsonl"
+
+# shellcheck source=../lib/artifacts.sh
+. "$ROOT_DIR/lib/artifacts.sh"
 
 log() { printf '%s\n' "[devkit-wulf] $*"; }
 warn() { printf '%s\n' "[devkit-wulf] WARNING: $*" >&2; }
@@ -19,6 +23,7 @@ require_jq() {
   jq -e . "$ENV_MANIFEST" >/dev/null || die "environment manifest is invalid JSON"
   jq -e . "$PLATFORM_MANIFEST" >/dev/null || die "platform manifest is invalid JSON"
   jq -e . "$PROFILE_MANIFEST" >/dev/null || die "profile manifest is invalid JSON"
+  jq -e . "$ARTIFACT_MANIFEST" >/dev/null || die "artifact manifest is invalid JSON"
 }
 
 normalize_arch() {
@@ -192,6 +197,13 @@ plan_environment() {
   if [ -n "$script" ]; then
     printf 'remote_script:\n  url: %s\n  integrity: %s\n' "$(printf '%s' "$script" | jq -r '.url')" "$(printf '%s' "$script" | jq -r '.integrity // "transport-and-review"')"
   fi
+  if [ "$strategy" = official-archive ]; then
+    if artifact_definition_exists "$env_id"; then
+      plan_verified_artifact "$env_id" "$platform" "$family" "$arch" || printf 'artifact:\n  adapter: unavailable-for-platform-or-architecture\n'
+    else
+      printf 'artifact:\n  adapter: unimplemented\n'
+    fi
+  fi
   printf 'verification:\n'; verify_lines "$env_id" | sed 's/^/  - /'
   printf 'sources:\n'; source_lines "$env_id" | sed 's/^/  - /'
   printf 'mutates_host=false\n'
@@ -328,11 +340,15 @@ install_environment() {
     official-script)
       install_remote_script "$env_id" "$domain" "$accept_remote"
       ;;
+    official-archive)
+      artifact_definition_exists "$env_id" || die "strategy 'official-archive' has no verified artifact adapter for $env_id"
+      install_verified_artifact "$env_id" "$platform" "$family" "$arch"
+      ;;
     xcode)
       [ "$platform" = macos ] || die "Xcode strategy is macOS-only"
       if xcode-select -p >/dev/null 2>&1; then log "Xcode Command Line Tools are already selected"; else xcode-select --install; fi
       ;;
-    official-archive|manual|source|vm|container|wsl2)
+    manual|source|vm|container|wsl2)
       die "strategy '$strategy' requires a dedicated adapter that is not yet safe to automate for $env_id; plan output contains the researched path"
       ;;
     winget) die "winget strategy requires native PowerShell CLI (bin/devkit-wulf.ps1)" ;;
@@ -392,6 +408,7 @@ doctor() {
     case "$(pwd -P)" in /mnt/[a-zA-Z]/*) warn "current project is on a Windows-mounted filesystem; Linux-side storage is recommended for WSL2 tooling" ;; esac
   fi
   log "manifest JSON parse: PASS"
+  log "artifact manifest JSON parse: PASS"
   log "state directory: PASS ($STATE_DIR)"
   log "doctor completed"
 }
