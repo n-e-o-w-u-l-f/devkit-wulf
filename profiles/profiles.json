@@ -7,7 +7,7 @@
     "systems": {"environments":["base","cpp","go","rust"],"description":"Native systems programming toolchains."},
     "mobile": {"environments":["base","java","android","flutter","apple"],"description":"Host-filtered Android, Flutter and Apple development."},
     "devops": {"environments":["base","docker","podman","kubectl","opentofu"],"description":"Containers, Kubernetes client and infrastructure tooling."},
-    "full": {"environments":["base","cpp","python","node","deno","bun","java","dotnet","go","rust","php","ruby","vscode","visualstudio","android","flutter","apple","docker","podman","kubectl","opentofu"],"description":"All catalogued environments; unsupported and experimental entries are still blocked unless separately opted in."},
+    "full": {"environments":["base","cpp","python","node","deno","bun","java","dotnet","go","rust","php","ruby","vscode","visualstudio","jetbrains","eclipse","android","flutter","apple","docker","podman","kubectl","opentofu"],"description":"All catalogued environments; unsupported and experimental entries are still blocked unless separately opted in."},
     "wsl-stable": {"environments":["base","cpp","python","node","java","dotnet","go","rust","docker","podman","kubectl","opentofu"],"preferred_distribution":"Debian","description":"Debian-oriented WSL2 development profile."},
     "wsl-rolling": {"environments":["base","cpp","python","node","java","go","rust","docker","podman","kubectl","opentofu"],"preferred_distribution":"Arch","description":"Arch-oriented WSL2 development profile."}
   }
