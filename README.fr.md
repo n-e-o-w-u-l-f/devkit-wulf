@@ -203,6 +203,14 @@ La matrice de support initiale a été actualisée le **10/08/2026** à partir d
 
 Pour la stratégie recommandée hôte/domaine par plateforme et environnement, voir [`docs/platform-strategy.md`](docs/platform-strategy.md). L’état d’implémentation et de promotion par phases est suivi dans [`ROADMAP.md`](ROADMAP.md).
 
+## Documentation et communauté
+
+- [Guide de contribution](CONTRIBUTING.md)
+- [Guide de support et de signalement](SUPPORT.md)
+- [Politique de sécurité](SECURITY.md)
+- [Politique de traduction](docs/TRANSLATIONS.md)
+- [Feuille de route](ROADMAP.md)
+
 ## Soutenir le projet
 
 Si `devkit-wulf` vous est utile, vous pouvez soutenir son développement continu via PayPal :
@@ -210,6 +218,10 @@ Si `devkit-wulf` vous est utile, vous pouvez soutenir son développement continu
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Faire un don avec PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [Faire un don avec PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+Scannez ou cliquez sur le QR code pour ouvrir la même page de don PayPal :
+
+[![QR code de don PayPal](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## Licence
 
