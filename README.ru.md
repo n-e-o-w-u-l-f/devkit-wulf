@@ -203,6 +203,14 @@ tests/                  тесты манифестов и CLI
 
 Рекомендуемая стратегия host/domain по платформам и средам описана в [`docs/platform-strategy.md`](docs/platform-strategy.md). Поэтапный статус реализации и повышения поддержки отслеживается в [`ROADMAP.md`](ROADMAP.md).
 
+## Документация и сообщество
+
+- [Руководство для участников](CONTRIBUTING.md)
+- [Поддержка и сообщения о проблемах](SUPPORT.md)
+- [Политика безопасности](SECURITY.md)
+- [Политика переводов](docs/TRANSLATIONS.md)
+- [Дорожная карта](ROADMAP.md)
+
 ## Поддержать проект
 
 Если `devkit-wulf` полезен вам, вы можете поддержать дальнейшую разработку через PayPal:
@@ -210,6 +218,10 @@ tests/                  тесты манифестов и CLI
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Пожертвовать через PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [Пожертвовать через PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+Отсканируйте или нажмите QR-код, чтобы открыть ту же страницу пожертвования PayPal:
+
+[![QR-код пожертвования PayPal](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## Лицензия
 
