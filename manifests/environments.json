@@ -42,8 +42,9 @@
     "cpp": {
       "name": "C and C++ toolchain",
       "category": "systems",
+      "description": "Portable compiler/build layer. Windows MSVC workloads are owned by the Visual Studio environment.",
       "platforms": {
-        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"],"notes":"Generic LLVM/CMake/Ninja layer. MSVC is modeled separately by visualstudio."},
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
         "debian": {"support":"experimental","strategy":"package-manager"},
         "arch": {"support":"experimental","strategy":"package-manager"},
         "fedora": {"support":"experimental","strategy":"package-manager"},
@@ -94,7 +95,7 @@
       },
       "packages": {
         "winget": ["Python.Python.3.14"],
-        "apt": ["python3", "python3-pip", "python3-venv"],
+        "apt": ["python3", "python3-pip", "python3-venv", "python-is-python3"],
         "pacman": ["python", "python-pip"],
         "dnf": ["python3", "python3-pip"],
         "zypper": ["python3", "python3-pip"],
@@ -104,10 +105,10 @@
         "pkg_add": ["python3"],
         "pkgin": ["python311", "py311-pip"]
       },
-      "verify": ["python3 --version || python --version", "python3 -m pip --version || python -m pip --version"],
+      "verify": ["python --version", "python -m pip --version"],
       "sources": ["https://www.python.org/", "https://docs.python.org/3/using/index.html"],
       "safe_remove": false,
-      "notes": "System-owned Python must not be replaced or removed destructively. Project virtual environments are preferred for application dependencies."
+      "notes": "System-owned Python must not be destructively replaced. Project virtual environments are preferred for application dependencies."
     },
     "node": {
       "name": "Node.js LTS",
@@ -136,7 +137,7 @@
       "verify": ["node --version", "npm --version"],
       "sources": ["https://nodejs.org/en/download", "https://nodejs.org/en/about/previous-releases"],
       "safe_remove": false,
-      "notes": "Distribution package versions may differ from upstream LTS. Version-manager support is planned as a separate strategy rather than silently running nvm install scripts."
+      "notes": "Distribution package versions may differ from upstream LTS. Version managers require their own reviewed strategy."
     },
     "deno": {
       "name": "Deno",
@@ -170,7 +171,7 @@
         "fedora": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
         "rhel": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
         "opensuse": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
-        "alpine": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"],"notes":"Use musl build selected by upstream installer."},
+        "alpine": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"],"notes":"Use upstream musl build selection."},
         "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]}
       },
       "packages": {"brew":["oven-sh/bun/bun"]},
@@ -178,7 +179,7 @@
         "unix": {"url":"https://bun.com/install","interpreter":"bash","integrity":"transport-and-review"},
         "windows": {"url":"https://bun.com/install.ps1","interpreter":"pwsh","integrity":"transport-and-review"}
       },
-      "verify": ["bun --version", "bun --revision"],
+      "verify": ["bun --version"],
       "sources": ["https://bun.sh/docs/installation"],
       "safe_remove": false
     },
@@ -209,7 +210,7 @@
       "verify": ["java -version", "javac -version", "mvn -version"],
       "sources": ["https://adoptium.net/installation/", "https://adoptium.net/installation/archives/"],
       "safe_remove": false,
-      "notes": "Exact Temurin release/architecture availability must be revalidated before promotion."
+      "notes": "Exact Temurin release and architecture availability must be revalidated before promotion."
     },
     "dotnet": {
       "name": ".NET SDK",
@@ -232,7 +233,7 @@
       "verify": ["dotnet --info"],
       "sources": ["https://learn.microsoft.com/dotnet/core/install/", "https://learn.microsoft.com/dotnet/core/tools/dotnet-install-script"],
       "safe_remove": false,
-      "notes": "Debian/openSUSE source configuration is version/distribution specific and intentionally not guessed by the generic package adapter."
+      "notes": "Distribution-specific repository configuration is intentionally not guessed by the generic package adapter."
     },
     "go": {
       "name": "Go",
@@ -296,7 +297,7 @@
       "remote_scripts": {
         "unix": {"url":"https://sh.rustup.rs","interpreter":"sh","arguments":["-s","--","-y","--profile","minimal"],"integrity":"transport-and-review","notes":"Official rustup bootstrap; execute only after GATE-06 review."}
       },
-      "verify": ["rustc --version", "cargo --version", "rustup show || true"],
+      "verify": ["rustc --version", "cargo --version"],
       "sources": ["https://doc.rust-lang.org/rustc/platform-support.html", "https://doc.rust-lang.org/rustc/target-tier-policy.html", "https://rustup.rs/"],
       "safe_remove": false
     },
@@ -352,7 +353,7 @@
         "brew": ["ruby"],
         "pkg": ["ruby", "rubygem-bundler"]
       },
-      "verify": ["ruby --version", "gem --version", "bundle --version || true"],
+      "verify": ["ruby --version", "gem --version", "bundle --version"],
       "sources": ["https://www.ruby-lang.org/en/documentation/installation/"],
       "safe_remove": false,
       "notes": "Do not destructively replace a system-managed Ruby."
@@ -376,11 +377,44 @@
       "name": "Visual Studio / MSVC / Windows SDK",
       "category": "ide",
       "platforms": {
-        "windows": {"support":"experimental","strategy":"manual","architectures":["amd64","arm64"],"notes":"Workload selection and product/channel IDs are version-sensitive; generic installer does not guess them."}
+        "windows": {"support":"experimental","strategy":"manual","architectures":["amd64","arm64"],"notes":"Workload and channel selection are version-sensitive and must be explicitly planned."},
+        "macos": {"support":"unsupported","strategy":"unsupported"},
+        "debian": {"support":"unsupported","strategy":"unsupported"}
       },
-      "verify": ["where.exe cl.exe", "where.exe msbuild.exe"],
+      "verify": ["where.exe msbuild.exe"],
       "sources": ["https://visualstudio.microsoft.com/", "https://learn.microsoft.com/visualstudio/install/"],
       "safe_remove": false
+    },
+    "jetbrains": {
+      "name": "JetBrains Toolbox and IDE manager",
+      "category": "ide",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64"],"notes":"Toolbox supports Windows 10 1809+ and Windows 11; exact installer architecture must be revalidated."},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"],"notes":"Toolbox officially lists selected Linux distributions and desktop dependencies; do not generalize to every Debian derivative."},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
+      },
+      "verify": ["jetbrains-toolbox --version"],
+      "sources": ["https://www.jetbrains.com/help/toolbox-app/installation.html"],
+      "safe_remove": false,
+      "notes": "Individual JetBrains IDE system requirements are product-specific; Toolbox installation does not imply every IDE is supported on the host."
+    },
+    "eclipse": {
+      "name": "Eclipse IDE",
+      "category": "ide",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64","riscv64"]},
+        "arch": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64","riscv64"]},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64","riscv64"]},
+        "rhel": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "opensuse": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
+      },
+      "verify": ["eclipse --version"],
+      "sources": ["https://www.eclipse.org/downloads/packages/"],
+      "safe_remove": false,
+      "notes": "Eclipse 2026-06 packages are published for Windows/macOS x86_64+AArch64 and Linux x86_64+AArch64+riscv64; actual package flavor remains user-selectable."
     },
     "android": {
       "name": "Android Studio and Android SDK",
@@ -395,10 +429,10 @@
         "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
       },
       "packages": {"winget":["Google.AndroidStudio"]},
-      "verify": ["adb version || true"],
+      "verify": ["adb version"],
       "sources": ["https://developer.android.com/studio/install", "https://developer.android.com/studio"],
       "safe_remove": false,
-      "notes": "Emulator installation additionally requires host virtualization capability and sufficient resources. Download SHA-256 must be validated for archive installs."
+      "notes": "Emulator installation additionally requires host virtualization capability. Download SHA-256 must be validated for archive installs."
     },
     "flutter": {
       "name": "Flutter / Dart",
@@ -433,7 +467,7 @@
       "name": "Docker",
       "category": "containers",
       "platforms": {
-        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"],"notes":"Docker Desktop client Windows; WSL2 is preferred for Linux containers in common per-user setups. Windows Server is excluded."},
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"],"notes":"Docker Desktop client Windows; WSL2 is preferred for common Linux-container development. Windows Server is excluded."},
         "debian": {"support":"experimental","strategy":"manual","notes":"Prefer native Docker Engine repository. Docker Desktop is a separate VM-backed product."},
         "arch": {"support":"experimental","strategy":"package-manager"},
         "fedora": {"support":"experimental","strategy":"manual"},
