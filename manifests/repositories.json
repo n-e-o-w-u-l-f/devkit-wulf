@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "repositories": {
+    "opentofu": {
+      "publisher": "OpenTofu / Linux Foundation",
+      "targets": {
+        "debian": {
+          "documentation": "https://opentofu.org/docs/v1.12/intro/install/deb/",
+          "package_manager": "apt",
+          "package": "tofu",
+          "prerequisites": ["apt-transport-https", "ca-certificates", "curl", "gnupg"],
+          "key_directory": "/etc/apt/keyrings",
+          "keys": [
+            {
+              "url": "https://get.opentofu.org/opentofu.gpg",
+              "destination": "/etc/apt/keyrings/opentofu.gpg",
+              "transform": "copy"
+            },
+            {
+              "url": "https://packages.opentofu.org/opentofu/tofu/gpgkey",
+              "destination": "/etc/apt/keyrings/opentofu-repo.gpg",
+              "transform": "gpg-dearmor"
+            }
+          ],
+          "repository_file": "/etc/apt/sources.list.d/opentofu.list",
+          "repository_content": "deb [signed-by=/etc/apt/keyrings/opentofu.gpg,/etc/apt/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main\ndeb-src [signed-by=/etc/apt/keyrings/opentofu.gpg,/etc/apt/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main\n",
+          "package_signature_required": true,
+          "repository_signature_required": true,
+          "tls_verification_required": true
+        },
+        "rhel": {
+          "documentation": "https://opentofu.org/docs/v1.12/intro/install/rpm/",
+          "package_manager": "dnf",
+          "package": "tofu",
+          "prerequisites": ["ca-certificates", "curl", "gnupg2"],
+          "keys": [
+            {"url": "https://get.opentofu.org/opentofu.gpg", "transform": "repository-key"},
+            {"url": "https://packages.opentofu.org/opentofu/tofu/gpgkey", "transform": "repository-key"}
+          ],
+          "repository_file": "/etc/yum.repos.d/opentofu.repo",
+          "repository_content": "[opentofu]\nname=opentofu\nbaseurl=https://packages.opentofu.org/opentofu/tofu/rpm_any/rpm_any/$basearch\nrepo_gpgcheck=0\ngpgcheck=1\nenabled=1\ngpgkey=https://get.opentofu.org/opentofu.gpg\n       https://packages.opentofu.org/opentofu/tofu/gpgkey\nsslverify=1\nsslcacert=/etc/pki/tls/certs/ca-bundle.crt\nmetadata_expire=300\n[opentofu-source]\nname=opentofu-source\nbaseurl=https://packages.opentofu.org/opentofu/tofu/rpm_any/rpm_any/SRPMS\nrepo_gpgcheck=0\ngpgcheck=1\nenabled=1\ngpgkey=https://get.opentofu.org/opentofu.gpg\n       https://packages.opentofu.org/opentofu/tofu/gpgkey\nsslverify=1\nsslcacert=/etc/pki/tls/certs/ca-bundle.crt\nmetadata_expire=300\n",
+          "package_signature_required": true,
+          "repository_signature_required": false,
+          "tls_verification_required": true
+        },
+        "opensuse": {
+          "documentation": "https://opentofu.org/docs/v1.12/intro/install/rpm/",
+          "package_manager": "zypper",
+          "package": "tofu",
+          "prerequisites": ["ca-certificates", "curl", "gpg2"],
+          "keys": [
+            {"url": "https://get.opentofu.org/opentofu.gpg", "transform": "repository-key"},
+            {"url": "https://packages.opentofu.org/opentofu/tofu/gpgkey", "transform": "repository-key"}
+          ],
+          "repository_file": "/etc/zypp/repos.d/opentofu.repo",
+          "repository_content": "[opentofu]\nname=opentofu\nbaseurl=https://packages.opentofu.org/opentofu/tofu/rpm_any/rpm_any/$basearch\nrepo_gpgcheck=1\ngpgcheck=1\nenabled=1\ngpgkey=https://get.opentofu.org/opentofu.gpg\n       https://packages.opentofu.org/opentofu/tofu/gpgkey\nsslverify=1\nsslcacert=/etc/pki/tls/certs/ca-bundle.crt\nmetadata_expire=300\n[opentofu-source]\nname=opentofu-source\nbaseurl=https://packages.opentofu.org/opentofu/tofu/rpm_any/rpm_any/SRPMS\nrepo_gpgcheck=1\ngpgcheck=1\nenabled=1\ngpgkey=https://get.opentofu.org/opentofu.gpg\n       https://packages.opentofu.org/opentofu/tofu/gpgkey\nsslverify=1\nsslcacert=/etc/pki/tls/certs/ca-bundle.crt\nmetadata_expire=300\n",
+          "package_signature_required": true,
+          "repository_signature_required": true,
+          "tls_verification_required": true
+        }
+      }
+    }
+  },
+  "native_packages": {
+    "opentofu": {
+      "fedora": {
+        "documentation": "https://opentofu.org/docs/v1.12/intro/install/fedora/",
+        "package_manager": "dnf",
+        "package": "opentofu"
+      }
+    }
+  }
+}
