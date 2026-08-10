@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-10",
+  "platforms": {
+    "windows": {"family":"windows","package_manager":"winget","architectures":["amd64","arm64"],"tier":"primary","notes":"Client Windows. Individual environments may narrow architecture or edition support."},
+    "debian": {"family":"debian","package_manager":"apt","architectures":["amd64","arm64","armv7","riscv64","ppc64le","s390x"],"tier":"primary"},
+    "ubuntu": {"family":"debian","package_manager":"apt","architectures":["amd64","arm64","armv7","riscv64","ppc64le","s390x"],"tier":"primary"},
+    "linuxmint": {"family":"debian","package_manager":"apt","architectures":["amd64"],"tier":"primary"},
+    "kali": {"family":"debian","package_manager":"apt","architectures":["amd64","arm64","armv7"],"tier":"primary"},
+    "raspbian": {"family":"debian","package_manager":"apt","architectures":["armv7","arm64"],"tier":"primary"},
+    "arch": {"family":"arch","package_manager":"pacman","architectures":["amd64"],"tier":"primary"},
+    "manjaro": {"family":"arch","package_manager":"pacman","architectures":["amd64","arm64"],"tier":"primary"},
+    "fedora": {"family":"fedora","package_manager":"dnf","architectures":["amd64","arm64","ppc64le","s390x"],"tier":"primary"},
+    "rhel": {"family":"rhel","package_manager":"dnf","architectures":["amd64","arm64","ppc64le","s390x"],"tier":"primary"},
+    "rocky": {"family":"rhel","package_manager":"dnf","architectures":["amd64","arm64"],"tier":"primary"},
+    "almalinux": {"family":"rhel","package_manager":"dnf","architectures":["amd64","arm64","ppc64le","s390x"],"tier":"primary"},
+    "opensuse-leap": {"family":"opensuse","package_manager":"zypper","architectures":["amd64","arm64","ppc64le","s390x"],"tier":"primary"},
+    "opensuse-tumbleweed": {"family":"opensuse","package_manager":"zypper","architectures":["amd64","arm64","ppc64le"],"tier":"primary"},
+    "alpine": {"family":"alpine","package_manager":"apk","architectures":["amd64","arm64","armv7","riscv64","ppc64le","s390x"],"tier":"primary"},
+    "macos": {"family":"macos","package_manager":"brew","architectures":["amd64","arm64"],"tier":"primary","notes":"Homebrew is optional infrastructure and is not silently bootstrapped."},
+    "freebsd": {"family":"freebsd","package_manager":"pkg","architectures":["amd64","arm64"],"tier":"research"},
+    "openbsd": {"family":"openbsd","package_manager":"pkg_add","architectures":["amd64","arm64"],"tier":"research"},
+    "netbsd": {"family":"netbsd","package_manager":"pkgin","architectures":["amd64","arm64"],"tier":"research","notes":"pkgin availability is installation-specific; detector may fall back to pkg_add."},
+    "dragonfly": {"family":"dragonfly","package_manager":"pkg","architectures":["amd64"],"tier":"research"},
+    "illumos": {"family":"illumos","package_manager":"pkg","architectures":["amd64"],"tier":"research"},
+    "solaris": {"family":"solaris","package_manager":"pkg","architectures":["amd64","sparc64"],"tier":"research"},
+    "aix": {"family":"aix","package_manager":"dnf","architectures":["ppc64"],"tier":"research","notes":"Package-manager availability varies by host; real-target validation required."}
+  }
+}
