@@ -16,6 +16,7 @@
           "path_directory": "/usr/local/bin",
           "mode": "0755",
           "integrity": "sha256",
+          "privileged": true,
           "architectures": {
             "amd64": {
               "filename": "kubectl",
