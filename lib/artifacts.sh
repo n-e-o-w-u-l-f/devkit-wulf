@@ -86,6 +86,19 @@ artifact_path_ready() {
   esac
 }
 
+artifact_state_ready() {
+  mkdir -p "$STATE_DIR" 2>/dev/null || return 1
+  [ -d "$STATE_DIR" ] || return 1
+  [ -w "$STATE_DIR" ] || return 1
+  _dw_art_state_file="$STATE_DIR/artifacts.jsonl"
+  if [ -e "$_dw_art_state_file" ]; then
+    [ -f "$_dw_art_state_file" ] || return 1
+    [ ! -L "$_dw_art_state_file" ] || return 1
+    [ -w "$_dw_art_state_file" ] || return 1
+  fi
+  return 0
+}
+
 plan_verified_artifact() {
   _dw_art_env=$1
   _dw_art_platform=$2
@@ -132,7 +145,7 @@ record_artifact_state() {
   _dw_art_sha=$6
   _dw_art_action=$7
   _dw_art_created=$8
-  mkdir -p "$STATE_DIR"
+  artifact_state_ready || die "GATE-10 artifact state path is not safely writable: $STATE_DIR"
   _dw_art_state_file="$STATE_DIR/artifacts.jsonl"
   _dw_art_timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   _dw_art_publisher=$(jq -r --arg e "$_dw_art_env" '.artifacts[$e].publisher' "$ARTIFACT_MANIFEST")
@@ -169,6 +182,7 @@ install_verified_artifact() (
 
   case "$_dw_art_privileged" in true|false) ;; *) die "invalid artifact privilege metadata for $_dw_art_env" ;; esac
   artifact_path_ready "$_dw_art_path_dir" || die "GATE-13 requires $_dw_art_path_dir to already exist in PATH; devkit-wulf will not modify PATH implicitly"
+  artifact_state_ready || die "GATE-10 artifact state path is not safely writable: $STATE_DIR"
   have install || die "POSIX install utility is required for verified binary installation"
   have mktemp || die "mktemp is required for verified binary installation"
 
@@ -190,6 +204,7 @@ install_verified_artifact() (
   [ "$_dw_art_actual" != unavailable ] || die "GATE-05 requires a local SHA-256 implementation"
   [ "$_dw_art_actual" = "$_dw_art_expected" ] || die "GATE-05 checksum mismatch for $_dw_art_url"
 
+  log "GATE-03 version source: $(jq -r --arg e "$_dw_art_env" '.artifacts[$e].version.url' "$ARTIFACT_MANIFEST") -> $_dw_art_version"
   log "GATE-04 source: $_dw_art_url"
   log "GATE-05 SHA-256 verified: $_dw_art_actual"
 
@@ -205,6 +220,8 @@ install_verified_artifact() (
     fi
     die "GATE-08 conflict: $_dw_art_destination already exists with a different SHA-256; explicit upgrade/migration is required"
   fi
+
+  record_artifact_state "$_dw_art_env" "$_dw_art_version" "$_dw_art_url" "$_dw_art_checksum_url" "$_dw_art_destination" "$_dw_art_actual" mutation-intent false
 
   if [ "$_dw_art_privileged" = true ]; then
     privileged install -m "$_dw_art_mode" "$_dw_art_payload" "$_dw_art_destination"
