@@ -1,0 +1,544 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-10",
+  "environments": {
+    "base": {
+      "name": "Base developer tools",
+      "category": "base",
+      "description": "Git, Git LFS, SSH/GPG, TLS certificates, transfer/archive utilities and jq where appropriate.",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"},
+        "openbsd": {"support":"experimental","strategy":"package-manager"},
+        "netbsd": {"support":"experimental","strategy":"package-manager"},
+        "dragonfly": {"support":"experimental","strategy":"package-manager"},
+        "illumos": {"support":"experimental","strategy":"package-manager"},
+        "solaris": {"support":"experimental","strategy":"package-manager"},
+        "aix": {"support":"experimental","strategy":"package-manager"}
+      },
+      "packages": {
+        "winget": ["Git.Git", "GitHub.GitLFS", "GnuPG.GnuPG"],
+        "apt": ["git", "git-lfs", "openssh-client", "gnupg", "ca-certificates", "curl", "wget", "unzip", "zip", "jq"],
+        "pacman": ["git", "git-lfs", "openssh", "gnupg", "ca-certificates", "curl", "wget", "unzip", "zip", "jq"],
+        "dnf": ["git", "git-lfs", "openssh-clients", "gnupg2", "ca-certificates", "curl", "wget", "unzip", "zip", "jq"],
+        "zypper": ["git", "git-lfs", "openssh", "gpg2", "ca-certificates", "curl", "wget", "unzip", "zip", "jq"],
+        "apk": ["git", "git-lfs", "openssh-client", "gnupg", "ca-certificates", "curl", "wget", "unzip", "zip", "jq"],
+        "brew": ["git", "git-lfs", "gnupg", "wget", "jq"],
+        "pkg": ["git", "git-lfs", "curl", "wget", "unzip", "jq"],
+        "pkg_add": ["git", "curl", "wget", "unzip", "jq"],
+        "pkgin": ["git", "curl", "wget", "unzip", "jq"]
+      },
+      "verify": ["git --version", "git lfs version", "ssh -V", "gpg --version"],
+      "sources": ["https://git-scm.com/", "https://git-lfs.com/", "https://www.openssh.com/", "https://gnupg.org/"],
+      "safe_remove": false
+    },
+    "cpp": {
+      "name": "C and C++ toolchain",
+      "category": "systems",
+      "description": "Portable compiler/build layer. Windows MSVC workloads are owned by the Visual Studio environment.",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"},
+        "openbsd": {"support":"experimental","strategy":"package-manager"},
+        "netbsd": {"support":"experimental","strategy":"package-manager"},
+        "dragonfly": {"support":"experimental","strategy":"package-manager"}
+      },
+      "packages": {
+        "winget": ["Kitware.CMake", "Ninja-build.Ninja", "LLVM.LLVM"],
+        "apt": ["build-essential", "cmake", "ninja-build", "clang", "gdb"],
+        "pacman": ["base-devel", "cmake", "ninja", "clang", "gdb", "lldb"],
+        "dnf": ["gcc", "gcc-c++", "make", "cmake", "ninja-build", "clang", "gdb", "lldb"],
+        "zypper": ["gcc", "gcc-c++", "make", "cmake", "ninja", "clang", "gdb"],
+        "apk": ["build-base", "cmake", "ninja", "clang", "gdb"],
+        "brew": ["cmake", "ninja", "llvm", "gcc"],
+        "pkg": ["cmake", "ninja", "llvm", "gcc"],
+        "pkg_add": ["cmake", "ninja", "llvm", "gcc"],
+        "pkgin": ["cmake", "ninja-build", "clang", "gcc"]
+      },
+      "verify": ["cmake --version", "ninja --version"],
+      "sources": ["https://cmake.org/", "https://ninja-build.org/", "https://llvm.org/", "https://gcc.gnu.org/"],
+      "safe_remove": false
+    },
+    "python": {
+      "name": "Python",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"},
+        "openbsd": {"support":"experimental","strategy":"package-manager"},
+        "netbsd": {"support":"experimental","strategy":"package-manager"},
+        "dragonfly": {"support":"experimental","strategy":"package-manager"},
+        "illumos": {"support":"experimental","strategy":"source"},
+        "solaris": {"support":"experimental","strategy":"source"},
+        "aix": {"support":"experimental","strategy":"source"}
+      },
+      "packages": {
+        "winget": ["Python.Python.3.14"],
+        "apt": ["python3", "python3-pip", "python3-venv", "python-is-python3"],
+        "pacman": ["python", "python-pip"],
+        "dnf": ["python3", "python3-pip"],
+        "zypper": ["python3", "python3-pip"],
+        "apk": ["python3", "py3-pip"],
+        "brew": ["python"],
+        "pkg": ["python3", "py311-pip"],
+        "pkg_add": ["python3"],
+        "pkgin": ["python311", "py311-pip"]
+      },
+      "verify": ["python --version", "python -m pip --version"],
+      "sources": ["https://www.python.org/", "https://docs.python.org/3/using/index.html"],
+      "safe_remove": false,
+      "notes": "System-owned Python must not be destructively replaced. Project virtual environments are preferred for application dependencies."
+    },
+    "node": {
+      "name": "Node.js LTS",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"}
+      },
+      "packages": {
+        "winget": ["OpenJS.NodeJS.LTS"],
+        "apt": ["nodejs", "npm"],
+        "pacman": ["nodejs-lts-jod", "npm"],
+        "dnf": ["nodejs", "npm"],
+        "zypper": ["nodejs", "npm"],
+        "apk": ["nodejs", "npm"],
+        "brew": ["node"],
+        "pkg": ["node", "npm"]
+      },
+      "verify": ["node --version", "npm --version"],
+      "sources": ["https://nodejs.org/en/download", "https://nodejs.org/en/about/previous-releases"],
+      "safe_remove": false,
+      "notes": "Distribution package versions may differ from upstream LTS. Version managers require their own reviewed strategy."
+    },
+    "deno": {
+      "name": "Deno",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-script"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"official-script"},
+        "rhel": {"support":"experimental","strategy":"official-script"},
+        "opensuse": {"support":"experimental","strategy":"official-script"},
+        "alpine": {"support":"experimental","strategy":"official-script"},
+        "macos": {"support":"experimental","strategy":"package-manager"}
+      },
+      "packages": {"pacman":["deno"],"brew":["deno"]},
+      "remote_scripts": {
+        "unix": {"url":"https://deno.land/install.sh","interpreter":"sh","integrity":"transport-and-review"},
+        "windows": {"url":"https://deno.land/install.ps1","interpreter":"pwsh","integrity":"transport-and-review"}
+      },
+      "verify": ["deno --version"],
+      "sources": ["https://docs.deno.com/runtime/getting_started/installation/"],
+      "safe_remove": false
+    },
+    "bun": {
+      "name": "Bun",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "arch": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "fedora": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "rhel": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "opensuse": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"]},
+        "alpine": {"support":"experimental","strategy":"official-script","architectures":["amd64","arm64"],"notes":"Use upstream musl build selection."},
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]}
+      },
+      "packages": {"brew":["oven-sh/bun/bun"]},
+      "remote_scripts": {
+        "unix": {"url":"https://bun.com/install","interpreter":"bash","integrity":"transport-and-review"},
+        "windows": {"url":"https://bun.com/install.ps1","interpreter":"pwsh","integrity":"transport-and-review"}
+      },
+      "verify": ["bun --version"],
+      "sources": ["https://bun.sh/docs/installation"],
+      "safe_remove": false
+    },
+    "java": {
+      "name": "Java / Eclipse Temurin + build tools",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "aix": {"support":"experimental","strategy":"official-archive"},
+        "solaris": {"support":"experimental","strategy":"official-archive"}
+      },
+      "packages": {
+        "winget": ["EclipseAdoptium.Temurin.25.JDK", "Apache.Maven"],
+        "apt": ["default-jdk", "maven", "gradle"],
+        "pacman": ["jdk-openjdk", "maven", "gradle"],
+        "dnf": ["java-latest-openjdk-devel", "maven", "gradle"],
+        "zypper": ["java-openjdk-devel", "maven", "gradle"],
+        "apk": ["openjdk21", "maven", "gradle"],
+        "brew": ["openjdk", "maven", "gradle"]
+      },
+      "verify": ["java -version", "javac -version", "mvn -version"],
+      "sources": ["https://adoptium.net/installation/", "https://adoptium.net/installation/archives/"],
+      "safe_remove": false,
+      "notes": "Exact Temurin release and architecture availability must be revalidated before promotion."
+    },
+    "dotnet": {
+      "name": ".NET SDK",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"manual"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"manual"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "freebsd": {"support":"experimental","strategy":"official-archive"}
+      },
+      "packages": {
+        "winget": ["Microsoft.DotNet.SDK.10"],
+        "dnf": ["dotnet-sdk-10.0"],
+        "apk": ["dotnet10-sdk"]
+      },
+      "verify": ["dotnet --info"],
+      "sources": ["https://learn.microsoft.com/dotnet/core/install/", "https://learn.microsoft.com/dotnet/core/tools/dotnet-install-script"],
+      "safe_remove": false,
+      "notes": "Distribution-specific repository configuration is intentionally not guessed by the generic package adapter."
+    },
+    "go": {
+      "name": "Go",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"},
+        "openbsd": {"support":"experimental","strategy":"package-manager"},
+        "netbsd": {"support":"experimental","strategy":"package-manager"},
+        "dragonfly": {"support":"target-only","strategy":"target-only"},
+        "illumos": {"support":"target-only","strategy":"target-only"},
+        "solaris": {"support":"target-only","strategy":"target-only"},
+        "aix": {"support":"target-only","strategy":"target-only"}
+      },
+      "packages": {
+        "winget": ["GoLang.Go"],
+        "apt": ["golang-go"],
+        "pacman": ["go"],
+        "dnf": ["golang"],
+        "zypper": ["go"],
+        "apk": ["go"],
+        "brew": ["go"],
+        "pkg": ["go"],
+        "pkg_add": ["go"],
+        "pkgin": ["go"]
+      },
+      "verify": ["go version", "go env GOHOSTOS GOHOSTARCH"],
+      "sources": ["https://go.dev/doc/install", "https://go.dev/doc/install/source"],
+      "cross_targets": ["aix/ppc64", "darwin/amd64", "darwin/arm64", "dragonfly/amd64", "freebsd/amd64", "freebsd/arm64", "illumos/amd64", "linux/amd64", "linux/arm64", "linux/riscv64", "linux/ppc64le", "linux/s390x", "netbsd/amd64", "openbsd/amd64", "openbsd/arm64", "solaris/amd64", "windows/amd64", "windows/arm64"],
+      "safe_remove": false
+    },
+    "rust": {
+      "name": "Rust / Cargo",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-script"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"official-script"},
+        "rhel": {"support":"experimental","strategy":"official-script"},
+        "opensuse": {"support":"experimental","strategy":"official-script"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"official-script"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"},
+        "openbsd": {"support":"experimental","strategy":"package-manager"}
+      },
+      "packages": {
+        "winget": ["Rustlang.Rustup"],
+        "pacman": ["rustup"],
+        "apk": ["rust", "cargo"],
+        "pkg": ["rust"],
+        "pkg_add": ["rust"]
+      },
+      "remote_scripts": {
+        "unix": {"url":"https://sh.rustup.rs","interpreter":"sh","arguments":["-s","--","-y","--profile","minimal"],"integrity":"transport-and-review","notes":"Official rustup bootstrap; execute only after GATE-06 review."}
+      },
+      "verify": ["rustc --version", "cargo --version"],
+      "sources": ["https://doc.rust-lang.org/rustc/platform-support.html", "https://doc.rust-lang.org/rustc/target-tier-policy.html", "https://rustup.rs/"],
+      "safe_remove": false
+    },
+    "php": {
+      "name": "PHP CLI + Composer",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "openbsd": {"support":"experimental","strategy":"package-manager"},
+        "solaris": {"support":"experimental","strategy":"source"}
+      },
+      "packages": {
+        "apt": ["php-cli", "php-dev", "composer"],
+        "pacman": ["php", "composer"],
+        "dnf": ["php-cli", "php-devel", "composer"],
+        "zypper": ["php8", "php8-devel", "composer"],
+        "apk": ["php84", "php84-dev", "composer"],
+        "brew": ["php", "composer"],
+        "pkg_add": ["php", "composer"]
+      },
+      "verify": ["php --version", "composer --version"],
+      "sources": ["https://www.php.net/manual/en/install.unix.php", "https://www.php.net/manual/en/install.windows.php", "https://www.php.net/manual/en/install.macosx.php"],
+      "safe_remove": false
+    },
+    "ruby": {
+      "name": "Ruby / RubyGems / Bundler",
+      "category": "language",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"]},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager"},
+        "freebsd": {"support":"experimental","strategy":"package-manager"}
+      },
+      "packages": {
+        "winget": ["RubyInstallerTeam.RubyWithDevKit.3.4"],
+        "apt": ["ruby-full", "ruby-bundler"],
+        "pacman": ["ruby"],
+        "dnf": ["ruby", "rubygem-bundler"],
+        "zypper": ["ruby", "rubygem-bundler"],
+        "apk": ["ruby", "ruby-bundler"],
+        "brew": ["ruby"],
+        "pkg": ["ruby", "rubygem-bundler"]
+      },
+      "verify": ["ruby --version", "gem --version", "bundle --version"],
+      "sources": ["https://www.ruby-lang.org/en/documentation/installation/"],
+      "safe_remove": false,
+      "notes": "Do not destructively replace a system-managed Ruby."
+    },
+    "vscode": {
+      "name": "Visual Studio Code",
+      "category": "ide",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"]},
+        "debian": {"support":"experimental","strategy":"manual","architectures":["amd64","arm64"]},
+        "fedora": {"support":"experimental","strategy":"manual","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]}
+      },
+      "packages": {"winget":["Microsoft.VisualStudioCode"],"brew":["--cask","visual-studio-code"]},
+      "verify": ["code --version"],
+      "sources": ["https://code.visualstudio.com/docs/supporting/requirements", "https://code.visualstudio.com/docs/remote/wsl"],
+      "safe_remove": false,
+      "notes": "Windows Server is not a supported VS Code desktop platform. For WSL, install the desktop client on Windows and use the VS Code Server in the distribution."
+    },
+    "visualstudio": {
+      "name": "Visual Studio / MSVC / Windows SDK",
+      "category": "ide",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"manual","architectures":["amd64","arm64"],"notes":"Workload and channel selection are version-sensitive and must be explicitly planned."},
+        "macos": {"support":"unsupported","strategy":"unsupported"},
+        "debian": {"support":"unsupported","strategy":"unsupported"}
+      },
+      "verify": ["where.exe msbuild.exe"],
+      "sources": ["https://visualstudio.microsoft.com/", "https://learn.microsoft.com/visualstudio/install/"],
+      "safe_remove": false
+    },
+    "jetbrains": {
+      "name": "JetBrains Toolbox and IDE manager",
+      "category": "ide",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64"],"notes":"Toolbox supports Windows 10 1809+ and Windows 11; exact installer architecture must be revalidated."},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"],"notes":"Toolbox officially lists selected Linux distributions and desktop dependencies; do not generalize to every Debian derivative."},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
+      },
+      "verify": ["jetbrains-toolbox --version"],
+      "sources": ["https://www.jetbrains.com/help/toolbox-app/installation.html"],
+      "safe_remove": false,
+      "notes": "Individual JetBrains IDE system requirements are product-specific; Toolbox installation does not imply every IDE is supported on the host."
+    },
+    "eclipse": {
+      "name": "Eclipse IDE",
+      "category": "ide",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64","riscv64"]},
+        "arch": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64","riscv64"]},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64","riscv64"]},
+        "rhel": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "opensuse": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
+      },
+      "verify": ["eclipse --version"],
+      "sources": ["https://www.eclipse.org/downloads/packages/"],
+      "safe_remove": false,
+      "notes": "Eclipse 2026-06 packages are published for Windows/macOS x86_64+AArch64 and Linux x86_64+AArch64+riscv64; actual package flavor remains user-selectable."
+    },
+    "android": {
+      "name": "Android Studio and Android SDK",
+      "category": "mobile",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"],"notes":"Google currently does not support Windows ARM hosts for Android Studio."},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "arch": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "rhel": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "opensuse": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
+      },
+      "packages": {"winget":["Google.AndroidStudio"]},
+      "verify": ["adb version"],
+      "sources": ["https://developer.android.com/studio/install", "https://developer.android.com/studio"],
+      "safe_remove": false,
+      "notes": "Emulator installation additionally requires host virtualization capability. Download SHA-256 must be validated for archive installs."
+    },
+    "flutter": {
+      "name": "Flutter / Dart",
+      "category": "mobile",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "arch": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
+      },
+      "verify": ["flutter --version", "dart --version", "flutter doctor"],
+      "sources": ["https://docs.flutter.dev/install/manual", "https://docs.flutter.dev/install/archive", "https://docs.flutter.dev/install/custom"],
+      "safe_remove": false,
+      "notes": "Host target restrictions are explicit: Windows desktop on Windows, macOS/iOS on macOS, Linux desktop on Linux."
+    },
+    "apple": {
+      "name": "Apple development stack",
+      "category": "mobile",
+      "platforms": {
+        "windows": {"support":"unsupported","strategy":"unsupported"},
+        "debian": {"support":"unsupported","strategy":"unsupported"},
+        "arch": {"support":"unsupported","strategy":"unsupported"},
+        "fedora": {"support":"unsupported","strategy":"unsupported"},
+        "macos": {"support":"experimental","strategy":"xcode","architectures":["amd64","arm64"]}
+      },
+      "verify": ["xcode-select -p", "xcrun --version", "swift --version"],
+      "sources": ["https://developer.apple.com/xcode/"],
+      "safe_remove": false
+    },
+    "docker": {
+      "name": "Docker",
+      "category": "containers",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"],"notes":"Docker Desktop client Windows; WSL2 is preferred for common Linux-container development. Windows Server is excluded."},
+        "debian": {"support":"experimental","strategy":"manual","notes":"Prefer native Docker Engine repository. Docker Desktop is a separate VM-backed product."},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"manual"},
+        "rhel": {"support":"experimental","strategy":"manual"},
+        "opensuse": {"support":"experimental","strategy":"manual"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]}
+      },
+      "packages": {"winget":["Docker.DockerDesktop"],"pacman":["docker"],"apk":["docker"],"brew":["--cask","docker"]},
+      "verify": ["docker version"],
+      "sources": ["https://docs.docker.com/desktop/setup/install/windows-install/", "https://docs.docker.com/desktop/setup/install/linux/", "https://docs.docker.com/engine/install/"],
+      "safe_remove": false,
+      "notes": "Docker Desktop license terms must remain visible; do not silently install Desktop where Engine is the intended native Linux environment."
+    },
+    "podman": {
+      "name": "Podman",
+      "category": "containers",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"],"notes":"Container execution requires podman machine VM."},
+        "debian": {"support":"experimental","strategy":"package-manager"},
+        "arch": {"support":"experimental","strategy":"package-manager"},
+        "fedora": {"support":"experimental","strategy":"package-manager"},
+        "rhel": {"support":"experimental","strategy":"package-manager"},
+        "opensuse": {"support":"experimental","strategy":"package-manager"},
+        "alpine": {"support":"experimental","strategy":"package-manager"},
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"],"notes":"Container execution requires podman machine VM."}
+      },
+      "packages": {"winget":["RedHat.Podman"],"apt":["podman"],"pacman":["podman"],"dnf":["podman"],"zypper":["podman"],"apk":["podman"],"brew":["podman"]},
+      "verify": ["podman version"],
+      "sources": ["https://docs.podman.io/en/latest/markdown/podman-machine.1.html"],
+      "safe_remove": false
+    },
+    "kubectl": {
+      "name": "kubectl",
+      "category": "infrastructure",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "arch": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "rhel": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "opensuse": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]}
+      },
+      "packages": {"winget":["Kubernetes.kubectl"],"pacman":["kubectl"],"brew":["kubectl"]},
+      "verify": ["kubectl version --client"],
+      "sources": ["https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/", "https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/", "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/"],
+      "safe_remove": false,
+      "notes": "kubectl client should stay within one minor version of the target cluster; latest is not universally optimal."
+    },
+    "opentofu": {
+      "name": "OpenTofu",
+      "category": "infrastructure",
+      "platforms": {
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"manual","architectures":["amd64","arm64"]},
+        "arch": {"support":"experimental","strategy":"official-archive"},
+        "fedora": {"support":"experimental","strategy":"manual"},
+        "rhel": {"support":"experimental","strategy":"manual"},
+        "opensuse": {"support":"experimental","strategy":"manual"},
+        "alpine": {"support":"experimental","strategy":"manual"},
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]},
+        "freebsd": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]}
+      },
+      "packages": {"winget":["OpenTofu.Tofu"],"brew":["opentofu"]},
+      "remote_scripts": {
+        "unix": {"url":"https://get.opentofu.org/install-opentofu.sh","interpreter":"sh","arguments":["--install-method","standalone"],"integrity":"upstream-signature","notes":"Installer supports integrity verification; never add --skip-verify."}
+      },
+      "verify": ["tofu -version"],
+      "sources": ["https://opentofu.org/docs/intro/install/", "https://opentofu.org/docs/intro/install/standalone/"],
+      "safe_remove": false
+    }
+  }
+}
