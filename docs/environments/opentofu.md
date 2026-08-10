@@ -33,7 +33,7 @@ OpenTofu publishes an official Debian repository. The documented setup uses:
 - a `signed-by=` constrained source definition;
 - package name `tofu`.
 
-The second key is dearmored locally with GnuPG before use. `devkit-wulf` must download keys before installation, use HTTPS only, and refuse to overwrite different existing key or repository files until an explicit migration workflow exists.
+The second key is dearmored locally with GnuPG before use. `devkit-wulf` downloads keys before installation, uses HTTPS only, and refuses to overwrite different existing key or repository files until an explicit migration workflow exists.
 
 ### RHEL / AlmaLinux / RPM-family
 
@@ -90,9 +90,47 @@ The vendor-repository helper introduced for this environment follows these rules
 9. no `--skip-verify`, insecure TLS option or generic trust bypass is introduced;
 10. environment verification still requires `tofu -version` after package installation.
 
-## Current integration status
+## Strategy resolution
 
-This branch adds the repository catalog, schema, helper layer and isolated tests. CLI strategy promotion/wiring is a separate gate: until the CLI explicitly selects these adapters and the corresponding tests pass, the existing environment manifest remains authoritative and fail-closed behavior is preserved.
+The environment catalog still records `manual` for OpenTofu combinations that were previously unautomated. The POSIX CLI now resolves an **effective strategy** only when a matching, schema-validated entry exists in `manifests/repositories.json`.
+
+This keeps the distinction visible:
+
+```text
+declared_strategy=manual
+strategy=vendor-repository
+```
+
+or, for Fedora:
+
+```text
+declared_strategy=manual
+strategy=package-manager
+```
+
+The support state is not changed by this resolution and remains `experimental`.
+
+Current effective Linux resolution:
+
+- Fedora -> `package-manager` using native package `opentofu`;
+- Debian family -> `vendor-repository` using APT and package `tofu`;
+- RHEL family -> `vendor-repository` using DNF and package `tofu`;
+- openSUSE family -> `vendor-repository` using Zypper and package `tofu`;
+- other OpenTofu paths retain their previously declared strategy and remain fail-closed unless a verified adapter already exists.
+
+`plan` shows the effective strategy, repository source, key sources, package manager, package, required privilege, signature policy and conflict policy without mutating the host.
+
+## Validation status
+
+The branch includes:
+
+- repository JSON Schema validation;
+- semantic policy validation;
+- isolated no-network/no-root repository helper tests;
+- portable CLI strategy-resolution checks;
+- ShellCheck/security-scan inclusion through the existing `lib/*.sh` CI scope.
+
+Hosted GitHub Actions remain subject to the repository account's external runner/billing availability. A successful local or fixture test does not promote support by itself.
 
 ## Upstream references
 
