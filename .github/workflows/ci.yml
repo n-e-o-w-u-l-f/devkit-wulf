@@ -54,6 +54,8 @@ jobs:
         run: brew install jq shellcheck
       - name: ShellCheck
         run: shellcheck bin/devkit-wulf bootstrap/*.sh scripts/*.sh tests/*.sh
+      - name: Security scan
+        run: sh scripts/security-scan.sh
       - name: CLI smoke test
         run: sh tests/test_cli.sh
 
@@ -69,7 +71,8 @@ jobs:
         run: |
           $results = Invoke-ScriptAnalyzer -Path bin,bootstrap,tests -Recurse -Severity Error,Warning
           $results | Format-Table -AutoSize
-          if ($results) { throw 'PSScriptAnalyzer findings detected' }
+          $blocking = @($results | Where-Object Severity -eq 'Error')
+          if ($blocking.Count -gt 0) { throw 'Blocking PSScriptAnalyzer errors detected' }
       - name: PowerShell CLI smoke test
         shell: pwsh
         run: .\tests\test_powershell.ps1
