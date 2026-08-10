@@ -60,12 +60,14 @@ artifact_resolve_version() {
   _dw_art_url=$(printf '%s' "$_dw_art_resolver" | jq -r '.url')
   _dw_art_pattern=$(printf '%s' "$_dw_art_resolver" | jq -r '.pattern')
   [ "$_dw_art_kind" = text-url ] || die "unsupported artifact version resolver: $_dw_art_kind"
+  have mktemp || die "mktemp is required for artifact version resolution"
 
-  _dw_art_tmp=${TMPDIR:-/tmp}/devkit-wulf-version-$$
-  rm -f "$_dw_art_tmp"
+  _dw_art_tmp=$(mktemp "${TMPDIR:-/tmp}/devkit-wulf-version.XXXXXX") || die "unable to create version resolver staging file"
+  trap 'rm -f "$_dw_art_tmp"' EXIT HUP INT TERM
   download_https "$_dw_art_url" "$_dw_art_tmp"
   _dw_art_version=$(tr -d ' \t\r\n' < "$_dw_art_tmp")
   rm -f "$_dw_art_tmp"
+  trap - EXIT HUP INT TERM
   artifact_validate_version "$_dw_art_version" "$_dw_art_pattern" || die "GATE-03 rejected artifact version value from $_dw_art_url"
   printf '%s' "$_dw_art_version"
 }
@@ -101,6 +103,7 @@ plan_verified_artifact() {
   _dw_art_destination=$(printf '%s' "$_dw_art_target" | jq -r '.destination')
   _dw_art_path_dir=$(printf '%s' "$_dw_art_target" | jq -r '.path_directory')
   _dw_art_integrity=$(printf '%s' "$_dw_art_target" | jq -r '.integrity')
+  _dw_art_privileged=$(printf '%s' "$_dw_art_target" | jq -r '.privileged')
   _dw_art_publisher=$(jq -r --arg e "$_dw_art_env" '.artifacts[$e].publisher' "$ARTIFACT_MANIFEST")
   _dw_art_version_source=$(jq -r --arg e "$_dw_art_env" '.artifacts[$e].version.url' "$ARTIFACT_MANIFEST")
 
@@ -114,7 +117,12 @@ plan_verified_artifact() {
   printf '  destination: %s\n' "$_dw_art_destination"
   printf '  path_directory: %s\n' "$_dw_art_path_dir"
   printf '  path_mutation: none\n'
-  printf '  conflict_policy: refuse-existing-different-hash\n'
+  if [ "$_dw_art_privileged" = true ]; then
+    printf '  privilege: root-or-sudo\n'
+  else
+    printf '  privilege: none\n'
+  fi
+  printf '  conflict_policy: refuse-existing-different-hash-or-symlink\n'
 }
 
 record_artifact_state() {
@@ -129,9 +137,11 @@ record_artifact_state() {
   mkdir -p "$STATE_DIR"
   _dw_art_state_file="$STATE_DIR/artifacts.jsonl"
   _dw_art_timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  _dw_art_publisher=$(jq -r --arg e "$_dw_art_env" '.artifacts[$e].publisher' "$ARTIFACT_MANIFEST")
   jq -nc \
     --arg timestamp "$_dw_art_timestamp" \
     --arg environment "$_dw_art_env" \
+    --arg publisher "$_dw_art_publisher" \
     --arg version "$_dw_art_version" \
     --arg source_url "$_dw_art_url" \
     --arg checksum_url "$_dw_art_checksum_url" \
@@ -139,7 +149,7 @@ record_artifact_state() {
     --arg sha256 "$_dw_art_sha" \
     --arg action "$_dw_art_action" \
     --argjson created "$_dw_art_created" \
-    '{timestamp:$timestamp,environment:$environment,version:$version,source_url:$source_url,checksum_url:$checksum_url,destination:$destination,sha256:$sha256,action:$action,created:$created,path_mutation:false}' \
+    '{timestamp:$timestamp,environment:$environment,publisher:$publisher,version:$version,source_url:$source_url,checksum_url:$checksum_url,destination:$destination,sha256:$sha256,action:$action,created:$created,path_mutation:false}' \
     >> "$_dw_art_state_file"
 }
 
@@ -156,16 +166,20 @@ install_verified_artifact() {
   _dw_art_destination=$(printf '%s' "$_dw_art_target" | jq -r '.destination')
   _dw_art_path_dir=$(printf '%s' "$_dw_art_target" | jq -r '.path_directory')
   _dw_art_mode=$(printf '%s' "$_dw_art_target" | jq -r '.mode')
+  _dw_art_privileged=$(printf '%s' "$_dw_art_target" | jq -r '.privileged')
   _dw_art_filename=$(printf '%s' "$_dw_art_target" | jq -r '.filename')
 
+  case "$_dw_art_privileged" in true|false) ;; *) die "invalid artifact privilege metadata for $_dw_art_env" ;; esac
   artifact_path_ready "$_dw_art_path_dir" || die "GATE-13 requires $_dw_art_path_dir to already exist in PATH; devkit-wulf will not modify PATH implicitly"
   have install || die "POSIX install utility is required for verified binary installation"
+  have mktemp || die "mktemp is required for verified binary installation"
 
   _dw_art_version=$(artifact_resolve_version "$_dw_art_env")
   _dw_art_url=$(artifact_render_template "$(printf '%s' "$_dw_art_target" | jq -r '.url_template')" "$_dw_art_version") || die "invalid artifact URL template/version"
   _dw_art_checksum_url=$(artifact_render_template "$(printf '%s' "$_dw_art_target" | jq -r '.checksum_url_template')" "$_dw_art_version") || die "invalid checksum URL template/version"
 
   _dw_art_tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-artifact.XXXXXX") || die "unable to create artifact staging directory"
+  trap 'rm -rf "$_dw_art_tmpdir"' EXIT HUP INT TERM
   _dw_art_payload="$_dw_art_tmpdir/$_dw_art_filename"
   _dw_art_checksum_file="$_dw_art_tmpdir/$_dw_art_filename.sha256"
 
@@ -173,31 +187,38 @@ install_verified_artifact() {
   download_https "$_dw_art_checksum_url" "$_dw_art_checksum_file"
 
   _dw_art_expected=$(awk 'NR==1 {print $1}' "$_dw_art_checksum_file" | tr 'A-F' 'a-f')
-  printf '%s\n' "$_dw_art_expected" | grep -Eq '^[0-9a-f]{64}$' || { rm -rf "$_dw_art_tmpdir"; die "GATE-05 rejected malformed SHA-256 metadata from $_dw_art_checksum_url"; }
+  printf '%s\n' "$_dw_art_expected" | grep -Eq '^[0-9a-f]{64}$' || die "GATE-05 rejected malformed SHA-256 metadata from $_dw_art_checksum_url"
   _dw_art_actual=$(sha256_file "$_dw_art_payload" | tr 'A-F' 'a-f')
-  [ "$_dw_art_actual" != unavailable ] || { rm -rf "$_dw_art_tmpdir"; die "GATE-05 requires a local SHA-256 implementation"; }
-  [ "$_dw_art_actual" = "$_dw_art_expected" ] || { rm -rf "$_dw_art_tmpdir"; die "GATE-05 checksum mismatch for $_dw_art_url"; }
+  [ "$_dw_art_actual" != unavailable ] || die "GATE-05 requires a local SHA-256 implementation"
+  [ "$_dw_art_actual" = "$_dw_art_expected" ] || die "GATE-05 checksum mismatch for $_dw_art_url"
 
   log "GATE-04 source: $_dw_art_url"
   log "GATE-05 SHA-256 verified: $_dw_art_actual"
 
-  if [ -e "$_dw_art_destination" ]; then
-    [ -f "$_dw_art_destination" ] || { rm -rf "$_dw_art_tmpdir"; die "GATE-08 conflict: destination exists and is not a regular file: $_dw_art_destination"; }
+  if [ -e "$_dw_art_destination" ] || [ -L "$_dw_art_destination" ]; then
+    [ ! -L "$_dw_art_destination" ] || die "GATE-08 conflict: destination is a symbolic link: $_dw_art_destination"
+    [ -f "$_dw_art_destination" ] || die "GATE-08 conflict: destination exists and is not a regular file: $_dw_art_destination"
     _dw_art_existing=$(sha256_file "$_dw_art_destination" | tr 'A-F' 'a-f')
+    [ "$_dw_art_existing" != unavailable ] || die "GATE-05 requires SHA-256 to evaluate the existing destination"
     if [ "$_dw_art_existing" = "$_dw_art_actual" ]; then
       log "$_dw_art_env exact verified artifact already exists at $_dw_art_destination"
       record_artifact_state "$_dw_art_env" "$_dw_art_version" "$_dw_art_url" "$_dw_art_checksum_url" "$_dw_art_destination" "$_dw_art_actual" observed-exact-artifact false
       rm -rf "$_dw_art_tmpdir"
+      trap - EXIT HUP INT TERM
       return 0
     fi
-    rm -rf "$_dw_art_tmpdir"
     die "GATE-08 conflict: $_dw_art_destination already exists with a different SHA-256; explicit upgrade/migration is required"
   fi
 
-  privileged install -m "$_dw_art_mode" "$_dw_art_payload" "$_dw_art_destination"
+  if [ "$_dw_art_privileged" = true ]; then
+    privileged install -m "$_dw_art_mode" "$_dw_art_payload" "$_dw_art_destination"
+  else
+    install -m "$_dw_art_mode" "$_dw_art_payload" "$_dw_art_destination"
+  fi
   _dw_art_installed=$(sha256_file "$_dw_art_destination" | tr 'A-F' 'a-f')
-  [ "$_dw_art_installed" = "$_dw_art_actual" ] || { rm -rf "$_dw_art_tmpdir"; die "GATE-12 installed artifact hash differs from verified staged artifact"; }
+  [ "$_dw_art_installed" = "$_dw_art_actual" ] || die "GATE-12 installed artifact hash differs from verified staged artifact"
 
   record_artifact_state "$_dw_art_env" "$_dw_art_version" "$_dw_art_url" "$_dw_art_checksum_url" "$_dw_art_destination" "$_dw_art_actual" installed-verified-artifact true
   rm -rf "$_dw_art_tmpdir"
+  trap - EXIT HUP INT TERM
 }
