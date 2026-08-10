@@ -37,12 +37,13 @@
     },
     "target": {
       "type": "object",
-      "required": ["destination", "path_directory", "mode", "integrity", "architectures"],
+      "required": ["destination", "path_directory", "mode", "integrity", "privileged", "architectures"],
       "properties": {
         "destination": {"type": "string", "pattern": "^/"},
         "path_directory": {"type": "string", "pattern": "^/"},
         "mode": {"type": "string", "pattern": "^0[0-7]{3}$"},
         "integrity": {"const": "sha256"},
+        "privileged": {"type": "boolean"},
         "architectures": {
           "type": "object",
           "minProperties": 1,
