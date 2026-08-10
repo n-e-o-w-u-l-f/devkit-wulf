@@ -203,6 +203,14 @@ Die initiale Supportmatrix wurde am **10.08.2026** anhand primärer Upstream-Dok
 
 Die empfohlene Host-/Domain-Strategie pro Plattform und Umgebung steht in [`docs/platform-strategy.md`](docs/platform-strategy.md). Der phasenweise Implementierungs- und Promotion-Status wird in [`ROADMAP.md`](ROADMAP.md) verfolgt.
 
+## Dokumentation und Community
+
+- [Beitragsrichtlinien](CONTRIBUTING.md)
+- [Support- und Fehlerberichtsleitfaden](SUPPORT.md)
+- [Sicherheitsrichtlinie](SECURITY.md)
+- [Übersetzungsrichtlinie](docs/TRANSLATIONS.md)
+- [Roadmap](ROADMAP.md)
+
 ## Projekt unterstützen
 
 Wenn `devkit-wulf` für dich nützlich ist, kannst du die weitere Entwicklung über PayPal unterstützen:
@@ -210,6 +218,10 @@ Wenn `devkit-wulf` für dich nützlich ist, kannst du die weitere Entwicklung ü
 <a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Mit PayPal spenden" title="PayPal - The safer, easier way to pay online!" /></a>
 
 [Mit PayPal spenden](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
+
+Scanne oder klicke auf den QR-Code, um dieselbe PayPal-Spendenseite zu öffnen:
+
+[![PayPal-Spenden-QR-Code](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 
 ## Lizenz
 
