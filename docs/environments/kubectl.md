@@ -36,25 +36,34 @@ The local SHA-256 is compared with the upstream checksum before any installation
 
 No checksum-bypass mode exists.
 
-## Conflict handling
+Temporary resolver and artifact files are created with `mktemp` and cleanup traps are isolated inside subshell functions so they do not replace caller cleanup handlers.
+
+## Privilege and PATH
 
 The verified artifact target is `/usr/local/bin/kubectl`.
 
-The adapter:
+The plan reports the final file operation as requiring `root-or-sudo`. Download, checksum validation, version resolution and staging remain unprivileged; elevation is scoped only to the final `install` operation.
 
-1. requires `/usr/local/bin` to already exist in `PATH`;
-2. never edits PATH automatically;
-3. refuses to replace a non-regular destination;
-4. accepts an existing destination only when its SHA-256 exactly matches the resolved verified artifact;
-5. refuses an existing different binary and requires a future explicit upgrade/migration workflow.
+The adapter requires `/usr/local/bin` to already exist in `PATH` and never edits PATH automatically.
 
-This conservative behavior is intentional while GATE-08/GATE-10 ownership and migration work remains open.
+## Conflict handling
+
+Before mutation, the adapter:
+
+1. rejects a symbolic-link destination;
+2. rejects any destination that is not a regular file;
+3. accepts an existing regular file only when its SHA-256 exactly matches the resolved verified artifact;
+4. refuses an existing different binary and requires a future explicit upgrade/migration workflow.
+
+A pre-existing functional kubectl discovered by the higher-level environment verification may be observed without replacement. This is intentional while explicit version/upgrade semantics remain part of the version-resolver and conflict-management roadmap.
 
 ## State tracking
 
-Verified artifact operations append metadata to the devkit-wulf state directory in `artifacts.jsonl`, including:
+The artifact state path must be safely writable **before** the host is mutated. A pre-existing `artifacts.jsonl` must be a writable regular file and must not be a symbolic link.
 
-- environment;
+Verified artifact operations append metadata to `artifacts.jsonl`, including:
+
+- environment and publisher;
 - resolved version;
 - binary source URL;
 - checksum URL;
@@ -64,6 +73,8 @@ Verified artifact operations append metadata to the devkit-wulf state directory 
 - whether devkit-wulf created the destination;
 - the fact that no PATH mutation occurred.
 
+Immediately before the final host mutation, devkit-wulf records a `mutation-intent` entry containing the verified source, checksum and destination. After a successful install and installed-file hash check it records `installed-verified-artifact`. An exact existing verified artifact is recorded as `observed-exact-artifact` instead.
+
 ## Verification
 
 After installation, the normal environment verification gate still runs:
@@ -72,7 +83,7 @@ After installation, the normal environment verification gate still runs:
 kubectl version --client
 ```
 
-A successful download or file copy is not treated as successful environment installation by itself.
+A successful download, checksum comparison or file copy is not treated as successful environment installation by itself.
 
 ## Upstream references
 
