@@ -386,18 +386,31 @@ verify_environment() {
   fi
   if [ "$env_id" = jetbrains ]; then
     platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain)
-    entry=$(resolve_entry "$env_id" "$platform" "$family")
-    strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$(printf '%s' "$entry" | jq -r '.strategy')")
-    if [ "$strategy" = jetbrains-toolbox ]; then
-      if [ "$domain" != native ]; then
-        warn "JetBrains Toolbox desktop adapter is not enabled inside $domain"
+    case "$platform" in
+      debian|fedora)
+        entry=$(resolve_entry "$env_id" "$platform" "$family")
+        strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$(printf '%s' "$entry" | jq -r '.strategy')")
+        if [ "$strategy" != jetbrains-toolbox ]; then
+          warn "JetBrains Toolbox has no managed adapter for $platform/$arch"
+          return 1
+        fi
+        if [ "$domain" != native ]; then
+          warn "JetBrains Toolbox desktop adapter is not enabled inside $domain"
+          return 1
+        fi
+        printf '[verify] managed jetbrains-toolbox --version\n'
+        if verify_jetbrains_toolbox "$arch"; then return 0; fi
+        warn "managed JetBrains Toolbox verification failed"
         return 1
-      fi
-      printf '[verify] managed jetbrains-toolbox --version\n'
-      if verify_jetbrains_toolbox "$arch"; then return 0; fi
-      warn "managed JetBrains Toolbox verification failed"
-      return 1
-    fi
+        ;;
+      macos)
+        :
+        ;;
+      *)
+        warn "JetBrains Toolbox verification has no exact adapter for $platform"
+        return 1
+        ;;
+    esac
   fi
   failed=0
   while IFS= read -r cmd; do
