@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "publisher": "PHP Group",
+  "release_index_url": "https://windows.php.net/downloads/releases/releases.json",
+  "download_base_url": "https://windows.php.net/downloads/releases",
+  "branch_policy": "latest-stable-branch",
+  "version_pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+  "build_pattern": "^nts-vs[0-9]+-x64$",
+  "target": {
+    "platform": "windows",
+    "architecture": "amd64",
+    "destination_template": "{localappdata}\\devkit-wulf\\php",
+    "path_directory_template": "{localappdata}\\devkit-wulf\\php",
+    "marker_name": ".devkit-wulf-artifact.json",
+    "archive_format": "zip",
+    "php_executable": "php.exe",
+    "integrity": "sha256-release-metadata",
+    "thread_safety": "nts",
+    "privileged": false
+  }
+}
