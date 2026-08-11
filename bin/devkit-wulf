@@ -9,6 +9,7 @@ PROFILE_MANIFEST="$ROOT_DIR/profiles/profiles.json"
 ARTIFACT_MANIFEST=${DEVKIT_WULF_ARTIFACT_MANIFEST:-"$ROOT_DIR/manifests/artifacts.json"}
 REPOSITORY_MANIFEST=${DEVKIT_WULF_REPOSITORY_MANIFEST:-"$ROOT_DIR/manifests/repositories.json"}
 DOTNET_LINUX_MANIFEST=${DEVKIT_WULF_DOTNET_LINUX_MANIFEST:-"$ROOT_DIR/manifests/dotnet-linux.json"}
+JETBRAINS_TOOLBOX_MANIFEST=${DEVKIT_WULF_JETBRAINS_TOOLBOX_MANIFEST:-"$ROOT_DIR/manifests/jetbrains-toolbox.json"}
 STATE_DIR=${DEVKIT_WULF_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/devkit-wulf}
 STATE_FILE="$STATE_DIR/state.jsonl"
 
@@ -18,6 +19,8 @@ STATE_FILE="$STATE_DIR/state.jsonl"
 . "$ROOT_DIR/lib/repositories.sh"
 # shellcheck source=../lib/dotnet-linux.sh
 . "$ROOT_DIR/lib/dotnet-linux.sh"
+# shellcheck source=../lib/jetbrains-toolbox.sh
+. "$ROOT_DIR/lib/jetbrains-toolbox.sh"
 
 log() { printf '%s\n' "[devkit-wulf] $*"; }
 warn() { printf '%s\n' "[devkit-wulf] WARNING: $*" >&2; }
@@ -32,6 +35,7 @@ require_jq() {
   jq -e . "$ARTIFACT_MANIFEST" >/dev/null || die "artifact manifest is invalid JSON"
   jq -e . "$REPOSITORY_MANIFEST" >/dev/null || die "repository manifest is invalid JSON"
   jq -e . "$DOTNET_LINUX_MANIFEST" >/dev/null || die ".NET Linux manifest is invalid JSON"
+  jq -e . "$JETBRAINS_TOOLBOX_MANIFEST" >/dev/null || die "JetBrains Toolbox manifest is invalid JSON"
 }
 
 normalize_arch() {
@@ -153,6 +157,10 @@ show_detection() {
 
 resolve_entry() {
   env_id=$1 platform=$2 family=$3
+  if [ "$env_id" = jetbrains ]; then
+    jq -c --arg e "$env_id" --arg p "$platform" '.environments[$e].platforms[$p] // {support:"unsupported",strategy:"unsupported"}' "$ENV_MANIFEST"
+    return 0
+  fi
   jq -c --arg e "$env_id" --arg p "$platform" --arg f "$family" \
     '.environments[$e].platforms[$p] // .environments[$e].platforms[$f] // {support:"unsupported",strategy:"unsupported"}' "$ENV_MANIFEST"
 }
@@ -197,6 +205,16 @@ resolve_effective_strategy() {
         ;;
     esac
   fi
+  if [ "$env_id" = jetbrains ] && [ "$declared" = official-archive ]; then
+    case "$platform" in
+      debian|fedora)
+        if [ -n "$(jetbrains_toolbox_target_json "$(normalize_arch)" || true)" ]; then
+          printf jetbrains-toolbox
+          return 0
+        fi
+        ;;
+    esac
+  fi
   if [ "$declared" = manual ]; then
     if [ -n "$(repository_target_json "$env_id" "$platform" "$family" || true)" ]; then
       printf vendor-repository
@@ -237,6 +255,9 @@ plan_environment() {
   declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
   strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
   if ! arch_allowed "$entry" "$arch"; then support=unsupported; declared_strategy=unsupported; strategy=unsupported; fi
+  if [ "$env_id" = jetbrains ] && [ "$strategy" = jetbrains-toolbox ] && [ "$domain" != native ]; then
+    support=unsupported; strategy=unsupported
+  fi
   printf 'environment=%s\nplatform=%s\nfamily=%s\ndomain=%s\nversion=%s\narchitecture=%s\nsupport=%s\ndeclared_strategy=%s\nstrategy=%s\npackage_manager=%s\n' \
     "$env_id" "$platform" "$family" "$domain" "$version" "$arch" "$support" "$declared_strategy" "$strategy" "$pm"
   notes=$(printf '%s' "$entry" | jq -r '.notes // empty')
@@ -257,6 +278,8 @@ plan_environment() {
   fi
   if [ "$strategy" = dotnet-linux ]; then
     dotnet_linux_plan "$platform" "$version" "$arch" "$pm"
+  elif [ "$strategy" = jetbrains-toolbox ]; then
+    plan_jetbrains_toolbox "$arch"
   elif [ "$strategy" = vendor-repository ]; then
     plan_vendor_repository "$env_id" "$platform" "$family" "$pm" "$arch" "$version" || printf 'vendor_repository:\n  adapter: unavailable-for-platform\n'
   elif [ "$strategy" = package-manager ] && [ -n "$(native_package_json "$env_id" "$platform" || true)" ]; then
@@ -361,6 +384,21 @@ verify_environment() {
       return 1
     fi
   fi
+  if [ "$env_id" = jetbrains ]; then
+    platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain)
+    entry=$(resolve_entry "$env_id" "$platform" "$family")
+    strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$(printf '%s' "$entry" | jq -r '.strategy')")
+    if [ "$strategy" = jetbrains-toolbox ]; then
+      if [ "$domain" != native ]; then
+        warn "JetBrains Toolbox desktop adapter is not enabled inside $domain"
+        return 1
+      fi
+      printf '[verify] managed jetbrains-toolbox --version\n'
+      if verify_jetbrains_toolbox "$arch"; then return 0; fi
+      warn "managed JetBrains Toolbox verification failed"
+      return 1
+    fi
+  fi
   failed=0
   while IFS= read -r cmd; do
     [ -n "$cmd" ] || continue
@@ -397,8 +435,9 @@ install_environment() {
   declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
   strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
   if ! arch_allowed "$entry" "$arch"; then support=unsupported; declared_strategy=unsupported; strategy=unsupported; fi
+  if [ "$env_id" = jetbrains ] && [ "$strategy" = jetbrains-toolbox ] && [ "$domain" != native ]; then support=unsupported; strategy=unsupported; fi
   case "$support" in
-    unsupported) die "$env_id is unsupported on $platform/$arch" ;;
+    unsupported) die "$env_id is unsupported on $platform/$arch in domain $domain" ;;
     target-only) die "$env_id is target-only on $platform; cross-compilation is not a host installation" ;;
     experimental) [ "$experimental" = true ] || die "$env_id on $platform is experimental; inspect 'plan' and pass --experimental to opt in" ;;
   esac
@@ -410,6 +449,9 @@ install_environment() {
   case "$strategy" in
     dotnet-linux)
       dotnet_linux_install "$platform" "$version" "$arch" "$pm"
+      ;;
+    jetbrains-toolbox)
+      install_jetbrains_toolbox "$arch"
       ;;
     package-manager)
       [ "$pm" != none ] || die "no supported package manager detected"
@@ -462,12 +504,15 @@ list_environments() {
   require_jq
   mode=${1:-all}; requested_platform=${2:-}
   platform=${requested_platform:-$(detect_platform)}; family=$(platform_family "$platform"); arch=$(normalize_arch)
+  domain=native
+  [ -n "$requested_platform" ] || domain=$(detect_domain)
   for env_id in $(jq -r '.environments | keys[]' "$ENV_MANIFEST"); do
     entry=$(resolve_entry "$env_id" "$platform" "$family")
     support=$(printf '%s' "$entry" | jq -r '.support')
     declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
     strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
     if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
+    if [ "$env_id" = jetbrains ] && [ "$strategy" = jetbrains-toolbox ] && [ "$domain" != native ]; then support=unsupported; strategy=unsupported; fi
     if [ "$mode" = supported ]; then
       case "$support" in experimental|unsupported|target-only) continue ;; esac
     fi
@@ -503,6 +548,7 @@ doctor() {
   log "artifact manifest JSON parse: PASS"
   log "repository manifest JSON parse: PASS"
   log ".NET Linux manifest JSON parse: PASS"
+  log "JetBrains Toolbox manifest JSON parse: PASS"
   log "state directory: PASS ($STATE_DIR)"
   log "doctor completed"
 }
