@@ -3,9 +3,11 @@ name: dotnet-linux
 on:
   pull_request:
     paths:
+      - 'bin/devkit-wulf'
       - 'lib/dotnet-linux.sh'
       - 'manifests/dotnet-linux.json'
       - 'manifests/schema/dotnet-linux.schema.json'
+      - 'tests/test_cli.sh'
       - 'tests/test_dotnet_linux.sh'
       - 'tests/validate_dotnet_linux.py'
       - 'docs/environments/dotnet-linux.md'
@@ -13,9 +15,11 @@ on:
   push:
     branches: [main]
     paths:
+      - 'bin/devkit-wulf'
       - 'lib/dotnet-linux.sh'
       - 'manifests/dotnet-linux.json'
       - 'manifests/schema/dotnet-linux.schema.json'
+      - 'tests/test_cli.sh'
       - 'tests/test_dotnet_linux.sh'
       - 'tests/validate_dotnet_linux.py'
       - '.github/workflows/dotnet-linux.yml'
@@ -54,6 +58,8 @@ jobs:
       - name: Install test tools
         run: sudo apt-get update && sudo apt-get install -y jq shellcheck
       - name: ShellCheck
-        run: shellcheck lib/dotnet-linux.sh tests/test_dotnet_linux.sh
+        run: shellcheck bin/devkit-wulf lib/dotnet-linux.sh tests/test_cli.sh tests/test_dotnet_linux.sh
+      - name: Central CLI smoke tests
+        run: sh tests/test_cli.sh
       - name: Offline adapter tests
         run: sh tests/test_dotnet_linux.sh

@@ -22,6 +22,20 @@ dotnet_linux_version_json() {
   jq -c --arg p "$_dw_dotnet_platform" --arg v "$_dw_dotnet_version" '.targets[$p].versions[$v] // empty' "$DOTNET_LINUX_MANIFEST"
 }
 
+dotnet_linux_target_compatible() {
+  _dw_dotnet_platform=$1
+  _dw_dotnet_version=$2
+  _dw_dotnet_arch=$3
+  _dw_dotnet_pm=$4
+  _dw_dotnet_target=$(dotnet_linux_target_json "$_dw_dotnet_platform")
+  [ -n "$_dw_dotnet_target" ] || return 1
+  _dw_dotnet_entry=$(dotnet_linux_version_json "$_dw_dotnet_platform" "$_dw_dotnet_version")
+  [ -n "$_dw_dotnet_entry" ] || return 1
+  _dw_dotnet_expected_pm=$(printf '%s' "$_dw_dotnet_target" | jq -r '.package_manager')
+  [ "$_dw_dotnet_pm" = "$_dw_dotnet_expected_pm" ] || return 1
+  printf '%s' "$_dw_dotnet_entry" | jq -e --arg a "$_dw_dotnet_arch" '.architectures | index($a) != null' >/dev/null 2>&1
+}
+
 dotnet_linux_validate_target() {
   _dw_dotnet_platform=$1
   _dw_dotnet_version=$2
@@ -50,8 +64,9 @@ _dotnet_stage_key() {
   _dw_dotnet_tmp=$2
   _dw_dotnet_url=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_url')
   _dw_dotnet_expected=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_fingerprint')
+  _dw_dotnet_transform=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_transform')
   _dw_dotnet_raw="$_dw_dotnet_tmp/microsoft.asc"
-  _dw_dotnet_key="$_dw_dotnet_tmp/microsoft.gpg"
+  _dw_dotnet_key="$_dw_dotnet_tmp/microsoft.key"
   download_https "$_dw_dotnet_url" "$_dw_dotnet_raw"
   [ -s "$_dw_dotnet_raw" ] || die "GATE-04 downloaded empty Microsoft signing key"
   _dw_dotnet_gpg=$(_dotnet_gpg_command) || die "GATE-05 requires GnuPG before repository mutation"
@@ -59,7 +74,15 @@ _dotnet_stage_key() {
   [ -n "$_dw_dotnet_actual" ] || die "GATE-05 rejected invalid Microsoft OpenPGP key"
   [ "$(_dotnet_normalize_fingerprint "$_dw_dotnet_actual")" = "$(_dotnet_normalize_fingerprint "$_dw_dotnet_expected")" ] || \
     die "GATE-05 Microsoft signing-key fingerprint mismatch"
-  "$_dw_dotnet_gpg" --no-tty --batch --dearmor --output "$_dw_dotnet_key" "$_dw_dotnet_raw" || die "GATE-05 failed to dearmor Microsoft key"
+  case "$_dw_dotnet_transform" in
+    gpg-dearmor)
+      "$_dw_dotnet_gpg" --no-tty --batch --dearmor --output "$_dw_dotnet_key" "$_dw_dotnet_raw" || die "GATE-05 failed to dearmor Microsoft key"
+      ;;
+    copy)
+      cp "$_dw_dotnet_raw" "$_dw_dotnet_key" || die "GATE-05 failed to stage Microsoft ASCII key"
+      ;;
+    *) die "unsupported Microsoft key transform: $_dw_dotnet_transform" ;;
+  esac
   printf '%s' "$_dw_dotnet_key"
 }
 
@@ -83,13 +106,47 @@ _dotnet_repository_content() {
       _dw_dotnet_repoarch=$(_dotnet_arch_for_repo "$_dw_dotnet_arch")
       printf 'deb [arch=%s signed-by=%s] %s %s main\n' "$_dw_dotnet_repoarch" "$_dw_dotnet_keydest" "$_dw_dotnet_base" "$_dw_dotnet_suite"
       ;;
-    opensuse-leap)
-      _dw_dotnet_id=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_id')
-      printf '[%s]\nname=Microsoft Production - openSUSE Leap\nbaseurl=%s\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=file://%s\nsslverify=1\n' \
-        "$_dw_dotnet_id" "$_dw_dotnet_base" "$_dw_dotnet_keydest"
-      ;;
-    *) die "no vendor repository renderer for $_dw_dotnet_platform" ;;
+    *) die "no deterministic repository renderer for $_dw_dotnet_platform" ;;
   esac
+}
+
+_dotnet_validate_downloaded_repo() {
+  _dw_dotnet_repo=$1
+  _dw_dotnet_file=$2
+  [ -s "$_dw_dotnet_file" ] || die "GATE-04 downloaded empty Microsoft repository file"
+  _dw_dotnet_base=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.base_url')
+  _dw_dotnet_id=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_id // empty')
+  grep -F "$_dw_dotnet_base" "$_dw_dotnet_file" >/dev/null || die "GATE-04 Microsoft repository file has unexpected base URL"
+  if [ -n "$_dw_dotnet_id" ]; then
+    grep -F "[$_dw_dotnet_id]" "$_dw_dotnet_file" >/dev/null || die "GATE-04 Microsoft repository file has unexpected repository id"
+  fi
+  if grep -Eiq '^[[:space:]]*(gpgcheck|repo_gpgcheck|sslverify)[[:space:]]*=[[:space:]]*(0|false|no)[[:space:]]*$' "$_dw_dotnet_file"; then
+    die "GATE-05 Microsoft repository file disables integrity or TLS verification"
+  fi
+}
+
+_dotnet_stage_repository() {
+  _dw_dotnet_platform=$1
+  _dw_dotnet_arch=$2
+  _dw_dotnet_repo=$3
+  _dw_dotnet_tmp=$4
+  _dw_dotnet_staged="$_dw_dotnet_tmp/repository.conf"
+  case "$_dw_dotnet_platform" in
+    debian)
+      _dotnet_repository_content "$_dw_dotnet_platform" "$_dw_dotnet_arch" "$_dw_dotnet_repo" > "$_dw_dotnet_staged"
+      ;;
+    opensuse-leap)
+      _dw_dotnet_repo_url=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_url')
+      case "$_dw_dotnet_repo_url" in
+        https://packages.microsoft.com/config/opensuse/16/prod.repo) ;;
+        *) die "GATE-04 unexpected Microsoft openSUSE repository URL" ;;
+      esac
+      download_https "$_dw_dotnet_repo_url" "$_dw_dotnet_staged"
+      _dotnet_validate_downloaded_repo "$_dw_dotnet_repo" "$_dw_dotnet_staged"
+      ;;
+    *) die "no Microsoft repository staging strategy for $_dw_dotnet_platform" ;;
+  esac
+  printf '%s' "$_dw_dotnet_staged"
 }
 
 _dotnet_preflight_file() {
@@ -155,12 +212,17 @@ dotnet_linux_plan() {
   printf '  package_source: %s\n' "$_dw_dotnet_source"
   printf '  package: %s\n' "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
   printf '  documentation: %s\n' "$(printf '%s' "$_dw_dotnet_target" | jq -r '.documentation')"
+  _dw_dotnet_prereqs=$(printf '%s' "$_dw_dotnet_target" | jq -r '.prerequisites[]? // empty' | tr '\n' ' ')
+  [ -n "$_dw_dotnet_prereqs" ] && printf '  prerequisites: %s\n' "$_dw_dotnet_prereqs"
   if [ "$_dw_dotnet_source" = microsoft ]; then
     _dw_dotnet_repo=$(printf '%s' "$_dw_dotnet_entry" | jq -c '.repository')
     printf '  repository_file: %s\n' "$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_file')"
     printf '  repository_base: %s\n' "$(printf '%s' "$_dw_dotnet_repo" | jq -r '.base_url')"
+    _dw_dotnet_repo_url=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_url // empty')
+    [ -n "$_dw_dotnet_repo_url" ] && printf '  repository_source: %s\n' "$_dw_dotnet_repo_url"
     printf '  key_url: %s\n' "$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_url')"
     printf '  key_fingerprint: %s\n' "$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_fingerprint')"
+    printf '  key_transform: %s\n' "$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_transform')"
   fi
   printf '  privilege: required-for-package-and-repository-mutation\n'
   printf '  verification: dotnet --list-sdks contains 10.x\n'
@@ -171,7 +233,7 @@ _dotnet_cleanup_staging() {
   [ -n "${_dw_dotnet_tmp:-}" ] || return 0
   rm -f \
     "$_dw_dotnet_tmp/microsoft.asc" \
-    "$_dw_dotnet_tmp/microsoft.gpg" \
+    "$_dw_dotnet_tmp/microsoft.key" \
     "$_dw_dotnet_tmp/repository.conf"
   rmdir "$_dw_dotnet_tmp" 2>/dev/null || true
 }
@@ -183,11 +245,11 @@ _dotnet_install_microsoft_repo() {
   _dw_dotnet_target=$4
   _dw_dotnet_entry=$5
   _dw_dotnet_repo=$(printf '%s' "$_dw_dotnet_entry" | jq -c '.repository')
+  _dw_dotnet_pm=$(printf '%s' "$_dw_dotnet_target" | jq -r '.package_manager')
   _dw_dotnet_tmp=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-dotnet.XXXXXX") || die "unable to create .NET staging directory"
   trap '_dotnet_cleanup_staging' EXIT HUP INT TERM
   _dw_dotnet_staged_key=$(_dotnet_stage_key "$_dw_dotnet_repo" "$_dw_dotnet_tmp")
-  _dw_dotnet_repo_staged="$_dw_dotnet_tmp/repository.conf"
-  _dotnet_repository_content "$_dw_dotnet_platform" "$_dw_dotnet_arch" "$_dw_dotnet_repo" > "$_dw_dotnet_repo_staged"
+  _dw_dotnet_repo_staged=$(_dotnet_stage_repository "$_dw_dotnet_platform" "$_dw_dotnet_arch" "$_dw_dotnet_repo" "$_dw_dotnet_tmp")
   _dw_dotnet_keydest=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.key_destination')
   _dw_dotnet_repofile=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_file')
   _dotnet_preflight_file "$_dw_dotnet_keydest" "$_dw_dotnet_staged_key"
@@ -202,10 +264,16 @@ _dotnet_install_microsoft_repo() {
     opensuse-leap)
       privileged rpm --import "$_dw_dotnet_keydest"
       _dw_dotnet_repoid=$(printf '%s' "$_dw_dotnet_repo" | jq -r '.repository_id')
-      privileged zypper --non-interactive --gpg-auto-import-keys refresh "$_dw_dotnet_repoid"
+      privileged zypper --non-interactive refresh "$_dw_dotnet_repoid"
       ;;
   esac
-  install_packages "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
+  _dw_dotnet_prereqs=$(printf '%s' "$_dw_dotnet_target" | jq -r '.prerequisites[]? // empty' | tr '\n' ' ')
+  if [ -n "$_dw_dotnet_prereqs" ]; then
+    # Schema restricts prerequisite identifiers to package-name tokens.
+    # shellcheck disable=SC2086
+    install_packages "$_dw_dotnet_pm" $_dw_dotnet_prereqs
+  fi
+  install_packages "$_dw_dotnet_pm" "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
   _dotnet_cleanup_staging
   _dw_dotnet_tmp=
   trap - EXIT HUP INT TERM
@@ -241,7 +309,7 @@ dotnet_linux_install() {
     distribution|distribution-appstream)
       _dotnet_check_distribution_preconditions "$_dw_dotnet_platform" "$_dw_dotnet_target"
       _dotnet_record_state mutation-intent "$_dw_dotnet_platform" "$_dw_dotnet_version" "$_dw_dotnet_arch" "$_dw_dotnet_source"
-      install_packages "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
+      install_packages "$_dw_dotnet_pm" "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
       ;;
     *) die "unsupported .NET package source: $_dw_dotnet_source" ;;
   esac

@@ -15,6 +15,7 @@ sh "$CLI" list | grep '^base'
 sh "$CLI" plan base | grep '^mutates_host=false$'
 sh "$CLI" plan go | grep '^environment=go$'
 sh "$CLI" doctor | grep 'repository manifest JSON parse: PASS'
+sh "$CLI" doctor | grep '.NET Linux manifest JSON parse: PASS'
 sh "$CLI" doctor | grep 'doctor completed'
 
 # Repository/native-package metadata may resolve a safer effective strategy without
@@ -35,6 +36,19 @@ sh "$CLI" list --platform opensuse-tumbleweed | grep -E '^docker[[:space:]]+expe
 sh "$CLI" list --platform linuxmint | grep -E '^docker[[:space:]]+experimental[[:space:]]+manual$'
 sh "$CLI" list --platform rocky | grep -E '^docker[[:space:]]+experimental[[:space:]]+manual$'
 sh "$CLI" list --platform almalinux | grep -E '^docker[[:space:]]+experimental[[:space:]]+manual$'
+
+# .NET 10 routing is an exact platform contract. Version/architecture validation
+# occurs inside the adapter during plan/install/verify. Family derivatives must
+# remain manual rather than inheriting RHEL/Debian/openSUSE package behavior.
+sh "$CLI" list --platform debian | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+dotnet-linux$'
+sh "$CLI" list --platform fedora | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+dotnet-linux$'
+sh "$CLI" list --platform rhel | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+dotnet-linux$'
+sh "$CLI" list --platform opensuse-leap | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+dotnet-linux$'
+sh "$CLI" list --platform ubuntu | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
+sh "$CLI" list --platform linuxmint | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
+sh "$CLI" list --platform rocky | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
+sh "$CLI" list --platform almalinux | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
+sh "$CLI" list --platform opensuse-tumbleweed | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
 
 if sh "$CLI" plan definitely-not-an-environment >/dev/null 2>&1; then
   echo "unknown environment unexpectedly succeeded" >&2
