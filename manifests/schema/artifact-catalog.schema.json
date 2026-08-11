@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["schema_version", "research_date", "artifacts"],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "research_date": {"type": "string", "format": "date"},
     "artifacts": {
       "type": "object",
@@ -15,7 +15,7 @@
   },
   "additionalProperties": false,
   "$defs": {
-    "versionResolver": {
+    "textVersionResolver": {
       "type": "object",
       "required": ["resolver", "url", "pattern"],
       "properties": {
@@ -25,7 +25,17 @@
       },
       "additionalProperties": false
     },
-    "architecture": {
+    "releaseIndexResolver": {
+      "type": "object",
+      "required": ["resolver", "channel", "version_pattern"],
+      "properties": {
+        "resolver": {"const": "release-index"},
+        "channel": {"type": "string", "enum": ["stable", "beta", "dev"]},
+        "version_pattern": {"type": "string", "minLength": 3}
+      },
+      "additionalProperties": false
+    },
+    "binaryArchitecture": {
       "type": "object",
       "required": ["filename", "url_template", "checksum_url_template"],
       "properties": {
@@ -35,10 +45,19 @@
       },
       "additionalProperties": false
     },
-    "target": {
+    "archiveArchitecture": {
       "type": "object",
-      "required": ["destination", "path_directory", "mode", "integrity", "privileged", "architectures"],
+      "required": ["release_arch"],
       "properties": {
+        "release_arch": {"type": "string", "enum": ["x64", "arm64"]}
+      },
+      "additionalProperties": false
+    },
+    "binaryTarget": {
+      "type": "object",
+      "required": ["kind", "destination", "path_directory", "mode", "integrity", "privileged", "architectures"],
+      "properties": {
+        "kind": {"const": "binary"},
         "destination": {"type": "string", "pattern": "^/"},
         "path_directory": {"type": "string", "pattern": "^/"},
         "mode": {"type": "string", "pattern": "^0[0-7]{3}$"},
@@ -47,7 +66,28 @@
         "architectures": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": {"$ref": "#/$defs/architecture"}
+          "additionalProperties": {"$ref": "#/$defs/binaryArchitecture"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "archiveTarget": {
+      "type": "object",
+      "required": ["kind", "release_index_url", "expected_base_url", "destination_template", "path_directory_template", "archive_format", "root_directory", "integrity", "privileged", "architectures"],
+      "properties": {
+        "kind": {"const": "archive"},
+        "release_index_url": {"type": "string", "pattern": "^https://"},
+        "expected_base_url": {"type": "string", "pattern": "^https://"},
+        "destination_template": {"type": "string", "pattern": "^\\{home\\}/"},
+        "path_directory_template": {"type": "string", "pattern": "^\\{home\\}/"},
+        "archive_format": {"type": "string", "enum": ["tar.xz", "zip"]},
+        "root_directory": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+        "integrity": {"const": "sha256-release-metadata"},
+        "privileged": {"const": false},
+        "architectures": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/archiveArchitecture"}
         }
       },
       "additionalProperties": false
@@ -58,11 +98,21 @@
       "properties": {
         "publisher": {"type": "string", "minLength": 1},
         "source": {"type": "string", "pattern": "^https://"},
-        "version": {"$ref": "#/$defs/versionResolver"},
+        "version": {
+          "oneOf": [
+            {"$ref": "#/$defs/textVersionResolver"},
+            {"$ref": "#/$defs/releaseIndexResolver"}
+          ]
+        },
         "targets": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": {"$ref": "#/$defs/target"}
+          "additionalProperties": {
+            "oneOf": [
+              {"$ref": "#/$defs/binaryTarget"},
+              {"$ref": "#/$defs/archiveTarget"}
+            ]
+          }
         }
       },
       "additionalProperties": false
