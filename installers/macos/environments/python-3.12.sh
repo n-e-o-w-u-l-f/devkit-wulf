@@ -10,10 +10,20 @@ fail() {
 command -v brew >/dev/null 2>&1 || fail "Homebrew is required for the macOS Python 3.12 adapter."
 
 ACTION=${1:-plan}
+EXPERIMENTAL=0
 case "$ACTION" in
     plan|install|verify) ;;
-    *) fail "Usage: $0 [plan|install|verify]" ;;
+    *) fail "Usage: $0 [plan|install|verify] [--experimental]" ;;
 esac
+case "${2:-}" in
+    '') ;;
+    --experimental) EXPERIMENTAL=1 ;;
+    *) fail "Unknown option: ${2:-}" ;;
+esac
+[ "${3:-}" = '' ] || fail "Too many arguments."
+if [ "$ACTION" = install ] && [ "$EXPERIMENTAL" -ne 1 ]; then
+    fail "Python 3.12 remains experimental; install requires --experimental."
+fi
 
 FORMULA=python@3.12
 MINIMUM_PATCH=3.12.13
@@ -48,7 +58,7 @@ cleanup_smoke_dir() {
 
 verify_python312() {
     exe=$(python312_executable) || fail "Homebrew-managed python@3.12 is not installed."
-    version=$($exe -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])') || fail "Unable to query Python version."
+    version=$("$exe" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])') || fail "Unable to query Python version."
     case "$version" in
         3.12.*) ;;
         *) fail "Homebrew runtime is not Python 3.12: $version" ;;
@@ -56,12 +66,12 @@ verify_python312() {
     version_ge "$version" "$MINIMUM_PATCH" || fail "Homebrew Python $version is below the researched security baseline $MINIMUM_PATCH. Run a Homebrew update/upgrade explicitly before retrying."
 
     tmp=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-python312.XXXXXX") || fail "Unable to create venv smoke directory."
-    trap 'cleanup_smoke_dir "$tmp"' EXIT HUP INT TERM
+    trap 'cleanup_smoke_dir "$tmp"' 0 1 2 15
     "$exe" -m venv "$tmp" || fail "venv smoke test failed."
     "$tmp/bin/python" -m pip --version >/dev/null || fail "pip smoke test inside venv failed."
     cleanup_smoke_dir "$tmp"
-    trap - EXIT HUP INT TERM
     tmp=''
+    trap - 0 1 2 15
 
     printf '%s\n' "python_executable=$exe"
     printf '%s\n' "python_version=$version"
