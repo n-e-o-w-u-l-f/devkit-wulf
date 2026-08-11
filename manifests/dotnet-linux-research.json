@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "publisher": "Microsoft",
+  "product": ".NET",
+  "activation": false,
+  "activation_reason": "Platform/version/package-source details must be resolved from current Microsoft documentation before an executable adapter is enabled.",
+  "targets": {
+    "debian": {
+      "scope": "platform",
+      "platform_id": "debian",
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-debian",
+      "intended_strategy": "vendor-repository-or-distribution-package",
+      "status": "research-only"
+    },
+    "fedora": {
+      "scope": "platform",
+      "platform_id": "fedora",
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-fedora",
+      "intended_strategy": "distribution-package-or-vendor-repository",
+      "status": "research-only"
+    },
+    "rhel": {
+      "scope": "platform",
+      "platform_id": "rhel",
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-rhel",
+      "intended_strategy": "distribution-package-or-vendor-repository",
+      "status": "research-only"
+    },
+    "opensuse-leap": {
+      "scope": "platform",
+      "platform_id": "opensuse-leap",
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-opensuse",
+      "intended_strategy": "vendor-repository-or-distribution-package",
+      "status": "research-only"
+    }
+  },
+  "activation_requirements": [
+    "current supported distribution versions are encoded explicitly",
+    "current .NET major/LTS availability is encoded per distribution version",
+    "architecture support is encoded per distribution/version/package source",
+    "package source ownership is explicit: distribution or Microsoft",
+    "repository signing and key provenance are encoded where a vendor feed is used",
+    "package identifiers are version-aware and verified against current Microsoft documentation",
+    "plan output exposes repositories, packages, privileges and verification commands",
+    "install-to-verify-to-install-again idempotency is tested on the exact target",
+    "safe removal ownership is known or remains fail-closed"
+  ],
+  "non_inheritance_policy": [
+    "Debian-family derivatives do not inherit Debian .NET support automatically",
+    "RHEL-compatible derivatives do not inherit RHEL .NET support automatically",
+    "package-manager compatibility alone never activates a target",
+    "cross-runtime availability does not imply host support"
+  ]
+}
