@@ -6,7 +6,10 @@ on:
       - 'environments/go/stable.json'
       - 'environments/schema/verified-artifact-environment.schema.json'
       - 'manifests/go-artifact.json'
+      - 'manifests/go-windows.json'
+      - 'manifests/schema/go-windows.schema.json'
       - 'lib/go-artifact.sh'
+      - 'lib/go-windows.ps1'
       - 'installers/linux/devkit-wulf.sh'
       - 'installers/wsl/devkit-wulf.sh'
       - 'installers/macos/devkit-wulf.sh'
@@ -14,8 +17,10 @@ on:
       - 'installers/linux/environments/go-stable.sh'
       - 'installers/wsl/environments/go-stable.sh'
       - 'installers/macos/environments/go-stable.sh'
+      - 'installers/windows/environments/go-stable.ps1'
       - 'tests/validate_go_stable_system_native.py'
       - 'tests/validate_python_312_routing.py'
+      - 'tests/test_go_windows.ps1'
       - 'docs/environments/go-stable.md'
       - '.github/workflows/go-stable-system-native.yml'
   push:
@@ -24,11 +29,15 @@ on:
       - 'environments/go/stable.json'
       - 'environments/schema/verified-artifact-environment.schema.json'
       - 'manifests/go-artifact.json'
+      - 'manifests/go-windows.json'
+      - 'manifests/schema/go-windows.schema.json'
       - 'lib/go-artifact.sh'
+      - 'lib/go-windows.ps1'
       - 'installers/**/devkit-wulf.*'
-      - 'installers/**/environments/go-stable.sh'
+      - 'installers/**/environments/go-stable.*'
       - 'tests/validate_go_stable_system_native.py'
       - 'tests/validate_python_312_routing.py'
+      - 'tests/test_go_windows.ps1'
       - 'docs/environments/go-stable.md'
       - '.github/workflows/go-stable-system-native.yml'
 
@@ -77,34 +86,67 @@ jobs:
           fi
           grep -F 'install requires --experimental' gate.out
 
-  windows-fail-closed:
+  windows-native:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Parse Windows entrypoint
+      - name: Validate shared Go stable contract on Windows
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            'installers/windows/devkit-wulf.ps1',
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
-          }
+          python tests/validate_go_stable_system_native.py
 
-      - name: Prove Windows Go stable fails before generic fallback
+      - name: Parse Windows route, adapter and helper
         shell: pwsh
         run: |
-          try {
-            & .\installers\windows\devkit-wulf.ps1 plan 'go@stable'
-            throw 'go@stable unexpectedly resolved on Windows'
-          } catch {
-            if ($_.Exception.Message -notmatch 'not enabled on Windows') {
-              throw
+          $files = @(
+            'installers/windows/devkit-wulf.ps1',
+            'installers/windows/environments/go-stable.ps1',
+            'lib/go-windows.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $file,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$file: $($_.Message)" }
+              exit 1
             }
           }
+
+      - name: Prove Windows experimental gate fails before mutation
+        shell: pwsh
+        run: |
+          $stateDir = Join-Path $env:RUNNER_TEMP ('devkit-wulf-go-gate-' + [guid]::NewGuid().ToString('N'))
+          $oldState = $env:DEVKIT_WULF_STATE_DIR
+          try {
+            $env:DEVKIT_WULF_STATE_DIR = $stateDir
+            try {
+              & .\installers\windows\devkit-wulf.ps1 install 'go@stable'
+              throw 'go@stable unexpectedly installed without -Experimental'
+            } catch {
+              if ($_.Exception.Message -notmatch 'install requires -Experimental') {
+                throw
+              }
+            }
+            if (Test-Path -LiteralPath $stateDir) {
+              throw 'experimental gate mutated state before explicit opt-in'
+            }
+          } finally {
+            if ($null -eq $oldState) {
+              Remove-Item Env:DEVKIT_WULF_STATE_DIR -ErrorAction SilentlyContinue
+            } else {
+              $env:DEVKIT_WULF_STATE_DIR = $oldState
+            }
+            if (Test-Path -LiteralPath $stateDir) {
+              Remove-Item -LiteralPath $stateDir -Recurse -Force
+            }
+          }
+
+      - name: Run Windows offline artifact fixture
+        shell: pwsh
+        run: .\tests\test_go_windows.ps1
