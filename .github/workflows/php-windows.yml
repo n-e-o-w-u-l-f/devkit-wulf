@@ -1,0 +1,64 @@
+name: php-windows
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/php-windows.json'
+      - 'manifests/schema/php-windows.schema.json'
+      - 'lib/php-windows.ps1'
+      - 'tests/validate_php_windows.py'
+      - 'tests/test_php_windows.ps1'
+      - 'docs/environments/php-windows.md'
+      - '.github/workflows/php-windows.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifests/php-windows.json'
+      - 'manifests/schema/php-windows.schema.json'
+      - 'lib/php-windows.ps1'
+      - 'tests/validate_php_windows.py'
+      - 'tests/test_php_windows.ps1'
+      - '.github/workflows/php-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate semantic contract
+        shell: pwsh
+        run: python tests/validate_php_windows.py
+      - name: Validate JSON Schema
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check jsonschema
+          @'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          root = Path('.')
+          schema = json.loads((root / 'manifests/schema/php-windows.schema.json').read_text())
+          manifest = json.loads((root / 'manifests/php-windows.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(manifest)
+          print('PHP Windows JSON Schema validation passed')
+          '@ | python -
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      - name: Analyze PowerShell helper and fixture
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path lib/php-windows.ps1,tests/test_php_windows.ps1 -Severity Error,Warning
+          $results | Format-Table -AutoSize
+          $blocking = @($results | Where-Object Severity -eq 'Error')
+          if ($blocking.Count -gt 0) { throw 'Blocking PSScriptAnalyzer errors detected' }
+      - name: Offline PHP Windows archive integration test
+        shell: pwsh
+        run: .\tests\test_php_windows.ps1
