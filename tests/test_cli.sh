@@ -61,6 +61,16 @@ sh "$CLI" list --platform linuxmint | grep -E '^jetbrains[[:space:]]+unsupported
 sh "$CLI" list --platform rhel | grep -E '^jetbrains[[:space:]]+unsupported[[:space:]]+unsupported$'
 sh "$CLI" list --platform opensuse-leap | grep -E '^jetbrains[[:space:]]+unsupported[[:space:]]+unsupported$'
 
+# ubuntu-latest is intentionally outside the exact JetBrains Linux adapter.
+# Verification must fail before any generic PATH-based jetbrains-toolbox command
+# could be accepted.
+if [ "$(sh "$CLI" detect | awk -F= '$1 == "platform" {print $2}')" = ubuntu ]; then
+  if sh "$CLI" verify jetbrains >/dev/null 2>&1; then
+    echo "JetBrains verification unexpectedly succeeded on unsupported Ubuntu" >&2
+    exit 1
+  fi
+fi
+
 if sh "$CLI" plan definitely-not-an-environment >/dev/null 2>&1; then
   echo "unknown environment unexpectedly succeeded" >&2
   exit 1
