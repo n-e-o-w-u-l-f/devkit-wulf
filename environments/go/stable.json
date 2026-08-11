@@ -41,9 +41,13 @@
       "entrypoint": "installers/macos/environments/go-stable.sh"
     },
     "windows-native": {
-      "support": "unsupported",
-      "strategy": "unsupported",
-      "reason": "The currently verified Go artifact contract does not contain a Windows target; a native Windows archive adapter requires its own reviewed contract."
+      "support": "experimental",
+      "strategy": "verified-powershell-artifact",
+      "artifact_platform": "windows",
+      "architectures": ["amd64", "arm64"],
+      "artifact_manifest": "manifests/go-windows.json",
+      "helper": "lib/go-windows.ps1",
+      "entrypoint": "installers/windows/environments/go-stable.ps1"
     },
     "bsd-native": {
       "support": "unsupported",
