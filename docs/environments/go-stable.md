@@ -8,6 +8,8 @@ Selector:
 go@stable
 ```
 
+Support state: **experimental** on every active adapter. Adapter presence does not promote support.
+
 ## Architecture
 
 The shared environment contract is:
@@ -16,16 +18,21 @@ The shared environment contract is:
 environments/go/stable.json
 ```
 
-The already-reviewed integrity/download contract remains:
+POSIX verified-artifact handling uses:
 
 ```text
 manifests/go-artifact.json
 lib/go-artifact.sh
 ```
 
-This split is deliberate. The shared helper resolves the verified Go release metadata, SHA-256 and safe archive transaction. Release-facing system adapters prove the host/domain and map the user command to that helper.
+Native Windows uses its own reviewed archive contract and PowerShell helper:
 
-The generic `go` environment remains unchanged and continues to use its existing package-manager strategy. `go@stable` is a separate experimental user-local verified-artifact path.
+```text
+manifests/go-windows.json
+lib/go-windows.ps1
+```
+
+This split is deliberate. The selector expresses shared Go-stable intent, while each execution domain uses a host-native reviewed artifact transaction. The generic unversioned `go` environment remains separate and continues to use its declared catalog strategy.
 
 ## Native Linux
 
@@ -41,7 +48,7 @@ Adapter:
 installers/linux/environments/go-stable.sh
 ```
 
-Verified architectures are inherited exactly from `manifests/go-artifact.json`:
+Reviewed architectures are inherited exactly from the POSIX Go artifact manifest:
 
 ```text
 amd64
@@ -51,9 +58,7 @@ ppc64le
 s390x
 ```
 
-The adapter performs no `sudo`/`doas`, no package-manager mutation and no PATH editing. It supplies the portable caller primitives required by `lib/go-artifact.sh`, then the existing helper performs release resolution, SHA-256, archive safety, ownership and idempotency checks.
-
-Native Linux rejects WSL. WSL uses its own release entrypoint.
+The adapter performs no privilege escalation, package-manager mutation, or persistent PATH editing. Native Linux rejects WSL; WSL has its own release entrypoint.
 
 ## WSL2
 
@@ -69,7 +74,7 @@ Adapter:
 installers/wsl/environments/go-stable.sh
 ```
 
-The WSL adapter only proves the WSL domain and delegates to the exact Linux Go adapter with explicit WSL flags. It does not duplicate download, SHA or extraction logic and does not invoke a Windows installer inside the Linux distribution.
+The WSL adapter proves the WSL domain and delegates to the exact Linux Go payload with explicit WSL guards. It does not duplicate artifact logic and does not invoke a Windows installer inside the Linux distribution.
 
 ## macOS
 
@@ -85,55 +90,85 @@ Adapter:
 installers/macos/environments/go-stable.sh
 ```
 
-Verified architectures:
+Reviewed architectures:
 
 ```text
 amd64
 arm64
 ```
 
-The macOS adapter uses the same verified Go artifact helper but provides macOS host/architecture mapping and native SHA/download primitives. No Homebrew package is installed for this selector; the artifact remains isolated under the devkit-wulf user-local destination defined by the verified manifest.
+The macOS adapter uses the POSIX verified Go artifact helper with macOS-native host/architecture mapping and SHA/download primitives. No Homebrew package is installed for this selector.
 
-## Windows and extended platforms
+## Windows
 
-`go@stable` is explicitly not enabled on Windows by this contract. The current verified Go artifact catalog contains Linux and macOS targets only.
+```powershell
+.\installers\windows\devkit-wulf.ps1 plan 'go@stable'
+.\installers\windows\devkit-wulf.ps1 install 'go@stable' -Experimental
+.\installers\windows\devkit-wulf.ps1 verify 'go@stable'
+```
 
-The shared selector also marks BSD, Solaris/illumos and AIX unsupported for this artifact path. Go cross-compilation targets are not treated as proof that devkit-wulf has a verified host installer for those systems.
+Adapter:
 
-A future Windows implementation should be a separate Windows-native archive/package contract, not a reuse of the Linux tar installer.
+```text
+installers/windows/environments/go-stable.ps1
+```
+
+Contract/helper:
+
+```text
+manifests/go-windows.json
+lib/go-windows.ps1
+```
+
+Reviewed architectures:
+
+```text
+amd64
+arm64
+```
+
+The native Windows route resolves official Go release metadata from `go.dev`, selects the ZIP artifact for the exact architecture, validates the release SHA-256, rejects unsafe archive paths, installs to the user-local devkit-wulf destination, records managed ownership/integrity state, and refuses foreign destinations. It does not reuse the POSIX tar installer or an MSI transaction and does not persistently mutate PATH.
+
+The route is **experimental** and still requires explicit `-Experimental` opt-in for installation.
+
+### CI reconciliation gate
+
+The semantic validator and Windows release entrypoint require this native route, but `.github/workflows/go-stable-system-native.yml` still contains the previous Windows fail-closed assertion. This is tracked in issue #35. Until that workflow is reconciled and hosted CI is runnable, do not treat the Windows lane as CI-promoted support.
+
+## Extended platforms
+
+The shared selector marks BSD, Solaris/illumos and AIX unsupported for this artifact path. Go cross-compilation targets are not proof that devkit-wulf has a verified host installer for those systems.
 
 ## Shared verified behavior
 
-For active hosts, the existing artifact helper provides:
+For active hosts, reviewed Go artifact paths provide:
 
 - official stable release-index resolution;
 - exact host OS/architecture matching;
-- SHA-256 from the release metadata;
-- strict tar-root/type validation;
-- rejection of symlinks/hardlinks/special files;
+- SHA-256 integrity validation from official release metadata;
+- archive safety validation;
 - user-local installation;
-- no privilege escalation;
-- no PATH mutation;
-- ownership marker and critical `go`/`gofmt` hashes;
-- exact managed verification;
-- fully offline second installation when the managed installation verifies;
+- no implicit privilege escalation;
+- no persistent PATH mutation;
+- ownership markers and critical `go`/`gofmt` hashes;
+- managed verification;
+- offline/idempotent second installation when the managed installation still verifies;
+- refusal to adopt a foreign destination;
 - no automatic upgrade of an existing managed toolchain.
 
-`install` remains experimental and therefore requires an explicit `--experimental` opt-in at the system-native adapter boundary.
+`install` remains experimental at every active system-native boundary.
 
-## Relationship to system-specific packaging
-
-The shared Go artifact transaction is portable code, not a universal executable. The release-facing structure remains:
+## Release-facing structure
 
 ```text
-go@stable shared intent / verified artifact contract
+go@stable shared intent
         │
-        ├── Linux entrypoint -> Linux adapter
-        ├── WSL entrypoint   -> WSL domain adapter -> Linux adapter
-        ├── macOS entrypoint -> macOS adapter
-        └── Windows          -> explicit unsupported gate
+        ├── Linux  -> POSIX verified artifact adapter
+        ├── WSL2   -> WSL domain adapter -> Linux adapter
+        ├── macOS  -> POSIX verified artifact adapter
+        └── Windows-> native PowerShell verified artifact adapter
 ```
 
-This preserves reusable security logic without claiming that one Linux/macOS shell artifact is a Windows `.exe` or that every Go-supported compilation target is a supported installer host.
+This preserves shared selector semantics without pretending that one archive format, shell helper, or host implementation is portable across every operating system.
 
-See also `docs/environments/go-artifact.md` and `docs/installer-architecture.md`.
+See also `docs/environments/go-artifact.md`, `docs/installer-architecture.md`, and `docs/REPOSITORY-STATUS.md`.
