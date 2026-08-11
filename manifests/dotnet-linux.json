@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "publisher": "Microsoft / distribution maintainers",
+  "product": ".NET SDK",
+  "sdk_major": "10.0",
+  "support": "experimental",
+  "targets": {
+    "debian": {
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-debian",
+      "package_manager": "apt",
+      "package_source": "microsoft",
+      "sdk_package": "dotnet-sdk-10.0",
+      "versions": {
+        "12": {
+          "architectures": ["amd64", "arm64"],
+          "repository": {
+            "base_url": "https://packages.microsoft.com/debian/12/prod",
+            "suite": "bookworm",
+            "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+            "key_fingerprint": "BC52 8686 B50D 79E3 39D3 721C EB3E 94AD BE12 29CF",
+            "key_destination": "/usr/share/keyrings/microsoft-prod.gpg",
+            "repository_file": "/etc/apt/sources.list.d/microsoft-prod.list"
+          }
+        },
+        "13": {
+          "architectures": ["amd64", "arm64"],
+          "repository": {
+            "base_url": "https://packages.microsoft.com/debian/13/prod",
+            "suite": "trixie",
+            "key_url": "https://packages.microsoft.com/keys/microsoft-2025.asc",
+            "key_fingerprint": "AA86 F75E 427A 19DD 3334 6403 EE4D 7792 F748 182B",
+            "key_destination": "/usr/share/keyrings/microsoft-prod.gpg",
+            "repository_file": "/etc/apt/sources.list.d/microsoft-prod.list"
+          }
+        }
+      },
+      "package_signature_required": true,
+      "repository_signature_required": true,
+      "tls_verification_required": true
+    },
+    "fedora": {
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-fedora",
+      "package_catalog": "https://packages.fedoraproject.org/pkgs/dotnet10.0/dotnet-sdk-10.0/",
+      "package_manager": "dnf",
+      "package_source": "distribution",
+      "sdk_package": "dotnet-sdk-10.0",
+      "versions": {
+        "43": {"architectures": ["amd64"]},
+        "44": {"architectures": ["amd64"]}
+      },
+      "package_signature_required": true,
+      "repository_signature_required": true,
+      "tls_verification_required": true
+    },
+    "rhel": {
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-rhel",
+      "architecture_policy": "https://access.redhat.com/support/policy/updates/net-core",
+      "package_manager": "dnf",
+      "package_source": "distribution-appstream",
+      "sdk_package": "dotnet-sdk-10.0",
+      "subscription_required": true,
+      "versions": {
+        "8": {"architectures": ["amd64", "arm64", "s390x", "ppc64le"]},
+        "9": {"architectures": ["amd64", "arm64", "s390x", "ppc64le"]},
+        "10": {"architectures": ["amd64", "arm64", "s390x", "ppc64le"]}
+      },
+      "package_signature_required": true,
+      "repository_signature_required": true,
+      "tls_verification_required": true
+    },
+    "opensuse-leap": {
+      "documentation": "https://learn.microsoft.com/en-us/dotnet/core/install/linux-opensuse",
+      "package_manager": "zypper",
+      "package_source": "microsoft",
+      "sdk_package": "dotnet-sdk-10.0",
+      "versions": {
+        "16": {
+          "architectures": ["amd64", "arm64"],
+          "repository": {
+            "base_url": "https://packages.microsoft.com/opensuse/16/prod/",
+            "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+            "key_fingerprint": "BC52 8686 B50D 79E3 39D3 721C EB3E 94AD BE12 29CF",
+            "key_destination": "/etc/pki/rpm-gpg/microsoft.asc",
+            "repository_file": "/etc/zypp/repos.d/microsoft-prod.repo",
+            "repository_id": "packages-microsoft-com-prod"
+          }
+        }
+      },
+      "package_signature_required": true,
+      "repository_signature_required": true,
+      "tls_verification_required": true
+    }
+  },
+  "verification": [
+    "dotnet --info",
+    "dotnet --list-sdks contains a 10.x SDK"
+  ],
+  "non_inheritance_policy": [
+    "Debian derivatives do not inherit Debian support automatically",
+    "RHEL-compatible derivatives do not inherit RHEL support automatically",
+    "Fedora-family package-manager compatibility does not imply Fedora support",
+    "openSUSE Tumbleweed does not inherit openSUSE Leap support",
+    "unknown distribution versions fail closed"
+  ]
+}
