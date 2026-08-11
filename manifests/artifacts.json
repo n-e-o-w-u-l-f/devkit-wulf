@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "research_date": "2026-08-11",
   "artifacts": {
     "kubectl": {
@@ -12,6 +12,7 @@
       },
       "targets": {
         "linux": {
+          "kind": "binary",
           "destination": "/usr/local/bin/kubectl",
           "path_directory": "/usr/local/bin",
           "mode": "0755",
@@ -28,6 +29,46 @@
               "url_template": "https://dl.k8s.io/release/{version}/bin/linux/arm64/kubectl",
               "checksum_url_template": "https://dl.k8s.io/release/{version}/bin/linux/arm64/kubectl.sha256"
             }
+          }
+        }
+      }
+    },
+    "flutter": {
+      "publisher": "Flutter / Google",
+      "source": "https://docs.flutter.dev/install/archive",
+      "version": {
+        "resolver": "release-index",
+        "channel": "stable",
+        "version_pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([._+-][A-Za-z0-9.-]+)?$"
+      },
+      "targets": {
+        "linux": {
+          "kind": "archive",
+          "release_index_url": "https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json",
+          "expected_base_url": "https://storage.googleapis.com/flutter_infra_release/releases",
+          "destination_template": "{home}/develop/flutter",
+          "path_directory_template": "{home}/develop/flutter/bin",
+          "archive_format": "tar.xz",
+          "root_directory": "flutter",
+          "integrity": "sha256-release-metadata",
+          "privileged": false,
+          "architectures": {
+            "amd64": {"release_arch": "x64"}
+          }
+        },
+        "macos": {
+          "kind": "archive",
+          "release_index_url": "https://storage.googleapis.com/flutter_infra_release/releases/releases_macos.json",
+          "expected_base_url": "https://storage.googleapis.com/flutter_infra_release/releases",
+          "destination_template": "{home}/develop/flutter",
+          "path_directory_template": "{home}/develop/flutter/bin",
+          "archive_format": "zip",
+          "root_directory": "flutter",
+          "integrity": "sha256-release-metadata",
+          "privileged": false,
+          "architectures": {
+            "amd64": {"release_arch": "x64"},
+            "arm64": {"release_arch": "arm64"}
           }
         }
       }
