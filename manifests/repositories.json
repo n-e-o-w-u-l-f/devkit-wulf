@@ -1,11 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "research_date": "2026-08-11",
   "repositories": {
     "opentofu": {
       "publisher": "OpenTofu / Linux Foundation",
       "targets": {
-        "debian": {
+        "family:debian": {
           "documentation": "https://opentofu.org/docs/v1.12/intro/install/deb/",
           "package_manager": "apt",
           "package": "tofu",
@@ -29,7 +29,7 @@
           "repository_signature_required": true,
           "tls_verification_required": true
         },
-        "rhel": {
+        "family:rhel": {
           "documentation": "https://opentofu.org/docs/v1.12/intro/install/rpm/",
           "package_manager": "dnf",
           "package": "tofu",
@@ -44,7 +44,7 @@
           "repository_signature_required": false,
           "tls_verification_required": true
         },
-        "opensuse": {
+        "family:opensuse": {
           "documentation": "https://opentofu.org/docs/v1.12/intro/install/rpm/",
           "package_manager": "zypper",
           "package": "tofu",
@@ -60,6 +60,107 @@
           "tls_verification_required": true
         }
       }
+    },
+    "docker": {
+      "publisher": "Docker, Inc.",
+      "targets": {
+        "platform:debian": {
+          "documentation": "https://docs.docker.com/engine/install/debian/",
+          "package_manager": "apt",
+          "packages": ["docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"],
+          "prerequisites": ["ca-certificates", "curl"],
+          "conflicting_packages": ["docker.io", "docker-compose", "docker-doc", "docker-buildx", "podman-docker", "containerd", "runc"],
+          "architectures": ["amd64", "armv7", "arm64", "ppc64le"],
+          "supported_versions": ["11", "12", "13"],
+          "key_directory": "/etc/apt/keyrings",
+          "keys": [
+            {
+              "url": "https://download.docker.com/linux/debian/gpg",
+              "destination": "/etc/apt/keyrings/docker.asc",
+              "transform": "copy"
+            }
+          ],
+          "repository_file": "/etc/apt/sources.list.d/docker.sources",
+          "repository_content_template": "Types: deb\nURIs: https://download.docker.com/linux/debian\nSuites: {suite}\nComponents: stable\nArchitectures: {architecture}\nSigned-By: /etc/apt/keyrings/docker.asc\n",
+          "suite_resolver": "debian-codename",
+          "architecture_resolver": "dpkg",
+          "services": [{"name": "docker", "action": "start"}],
+          "package_signature_required": true,
+          "repository_signature_required": true,
+          "tls_verification_required": true
+        },
+        "platform:ubuntu": {
+          "documentation": "https://docs.docker.com/engine/install/ubuntu/",
+          "package_manager": "apt",
+          "packages": ["docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"],
+          "prerequisites": ["ca-certificates", "curl"],
+          "conflicting_packages": ["docker.io", "docker-compose", "docker-compose-v2", "docker-doc", "podman-docker", "containerd", "runc"],
+          "architectures": ["amd64", "armv7", "arm64", "ppc64le", "s390x"],
+          "supported_versions": ["22.04", "24.04", "25.10", "26.04"],
+          "key_directory": "/etc/apt/keyrings",
+          "keys": [
+            {
+              "url": "https://download.docker.com/linux/ubuntu/gpg",
+              "destination": "/etc/apt/keyrings/docker.asc",
+              "transform": "copy"
+            }
+          ],
+          "repository_file": "/etc/apt/sources.list.d/docker.sources",
+          "repository_content_template": "Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: {suite}\nComponents: stable\nArchitectures: {architecture}\nSigned-By: /etc/apt/keyrings/docker.asc\n",
+          "suite_resolver": "ubuntu-codename",
+          "architecture_resolver": "dpkg",
+          "services": [{"name": "docker", "action": "start"}],
+          "package_signature_required": true,
+          "repository_signature_required": true,
+          "tls_verification_required": true
+        },
+        "platform:fedora": {
+          "documentation": "https://docs.docker.com/engine/install/fedora/",
+          "package_manager": "dnf",
+          "packages": ["docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"],
+          "prerequisites": [],
+          "conflicting_packages": ["docker", "docker-client", "docker-client-latest", "docker-common", "docker-latest", "docker-latest-logrotate", "docker-logrotate", "docker-selinux", "docker-engine-selinux", "docker-engine"],
+          "architectures": ["amd64", "arm64", "ppc64le"],
+          "supported_versions": ["43", "44"],
+          "keys": [
+            {
+              "url": "https://download.docker.com/linux/fedora/gpg",
+              "transform": "repository-key",
+              "fingerprint": "060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35"
+            }
+          ],
+          "repository_file": "/etc/yum.repos.d/docker-ce.repo",
+          "repository_url": "https://download.docker.com/linux/fedora/docker-ce.repo",
+          "repository_required_substrings": ["gpgcheck=1", "https://download.docker.com/linux/fedora/gpg"],
+          "services": [{"name": "docker", "action": "enable-now"}],
+          "package_signature_required": true,
+          "repository_signature_required": false,
+          "tls_verification_required": true
+        },
+        "platform:rhel": {
+          "documentation": "https://docs.docker.com/engine/install/rhel/",
+          "package_manager": "dnf",
+          "packages": ["docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"],
+          "prerequisites": [],
+          "conflicting_packages": ["docker", "docker-client", "docker-client-latest", "docker-common", "docker-latest", "docker-latest-logrotate", "docker-logrotate", "docker-engine", "podman", "runc"],
+          "architectures": ["amd64", "arm64", "s390x"],
+          "supported_versions": ["8", "9", "10"],
+          "keys": [
+            {
+              "url": "https://download.docker.com/linux/rhel/gpg",
+              "transform": "repository-key",
+              "fingerprint": "060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35"
+            }
+          ],
+          "repository_file": "/etc/yum.repos.d/docker-ce.repo",
+          "repository_url": "https://download.docker.com/linux/rhel/docker-ce.repo",
+          "repository_required_substrings": ["gpgcheck=1", "https://download.docker.com/linux/rhel/gpg"],
+          "services": [{"name": "docker", "action": "enable-now"}],
+          "package_signature_required": true,
+          "repository_signature_required": false,
+          "tls_verification_required": true
+        }
+      }
     }
   },
   "native_packages": {
@@ -68,6 +169,18 @@
         "documentation": "https://opentofu.org/docs/v1.12/intro/install/fedora/",
         "package_manager": "dnf",
         "package": "opentofu"
+      }
+    },
+    "docker": {
+      "opensuse-leap": {
+        "documentation": "https://en.opensuse.org/Docker",
+        "package_manager": "zypper",
+        "package": "docker"
+      },
+      "opensuse-tumbleweed": {
+        "documentation": "https://en.opensuse.org/Docker",
+        "package_manager": "zypper",
+        "package": "docker"
       }
     }
   }
