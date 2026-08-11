@@ -5,11 +5,16 @@ on:
     paths:
       - 'environments/python/3.12.json'
       - 'environments/schema/python-version.schema.json'
+      - 'installers/windows/devkit-wulf.ps1'
+      - 'installers/linux/devkit-wulf.sh'
+      - 'installers/wsl/devkit-wulf.sh'
+      - 'installers/macos/devkit-wulf.sh'
       - 'installers/windows/environments/python-3.12.ps1'
       - 'installers/linux/environments/python-3.12.sh'
       - 'installers/wsl/environments/python-3.12.sh'
       - 'installers/macos/environments/python-3.12.sh'
       - 'tests/validate_python_312_contract.py'
+      - 'tests/validate_python_312_routing.py'
       - 'docs/environments/python-3.12.md'
       - '.github/workflows/python-312-system-native.yml'
   push:
@@ -17,8 +22,13 @@ on:
     paths:
       - 'environments/python/3.12.json'
       - 'environments/schema/python-version.schema.json'
+      - 'installers/windows/devkit-wulf.ps1'
+      - 'installers/linux/devkit-wulf.sh'
+      - 'installers/wsl/devkit-wulf.sh'
+      - 'installers/macos/devkit-wulf.sh'
       - 'installers/**/environments/python-3.12.*'
       - 'tests/validate_python_312_contract.py'
+      - 'tests/validate_python_312_routing.py'
       - 'docs/environments/python-3.12.md'
       - '.github/workflows/python-312-system-native.yml'
 
@@ -32,18 +42,30 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate shared and system-native contract
-        run: python3 tests/validate_python_312_contract.py
+        run: |
+          python3 tests/validate_python_312_contract.py
+          python3 tests/validate_python_312_routing.py
 
-      - name: Parse POSIX adapters
+      - name: Parse POSIX entrypoints and adapters
         shell: sh
         run: |
           set -eu
+          sh -n installers/linux/devkit-wulf.sh
+          sh -n installers/wsl/devkit-wulf.sh
+          sh -n installers/macos/devkit-wulf.sh
           sh -n installers/linux/environments/python-3.12.sh
           sh -n installers/wsl/environments/python-3.12.sh
           sh -n installers/macos/environments/python-3.12.sh
 
-      - name: ShellCheck adapters
-        run: shellcheck installers/linux/environments/python-3.12.sh installers/wsl/environments/python-3.12.sh installers/macos/environments/python-3.12.sh
+      - name: ShellCheck POSIX routing and adapters
+        run: >-
+          shellcheck
+          installers/linux/devkit-wulf.sh
+          installers/wsl/devkit-wulf.sh
+          installers/macos/devkit-wulf.sh
+          installers/linux/environments/python-3.12.sh
+          installers/wsl/environments/python-3.12.sh
+          installers/macos/environments/python-3.12.sh
 
   ubuntu-2404-plan:
     runs-on: ubuntu-latest
@@ -51,15 +73,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Exercise non-mutating Ubuntu plan
+      - name: Exercise non-mutating Ubuntu plan through system entrypoint
         shell: sh
-        run: ./installers/linux/environments/python-3.12.sh plan
+        run: ./installers/linux/devkit-wulf.sh plan python@3.12
 
-      - name: Experimental gate precedes APT mutation
+      - name: Experimental gate precedes APT mutation through system entrypoint
         shell: sh
         run: |
           set -eu
-          if ./installers/linux/environments/python-3.12.sh install >gate.out 2>&1; then
+          if ./installers/linux/devkit-wulf.sh install python@3.12 >gate.out 2>&1; then
             echo 'install unexpectedly succeeded without --experimental' >&2
             exit 1
           fi
@@ -70,26 +92,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Parse PowerShell adapter
+      - name: Parse PowerShell entrypoint and adapter
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            'installers/windows/environments/python-3.12.ps1',
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
+          foreach ($file in @(
+            'installers/windows/devkit-wulf.ps1',
+            'installers/windows/environments/python-3.12.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $file,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+            }
           }
 
-      - name: Experimental gate precedes manager requirement
+      - name: Experimental gate precedes manager requirement through system entrypoint
         shell: pwsh
         run: |
           try {
-            & .\installers\windows\environments\python-3.12.ps1 install
+            & .\installers\windows\devkit-wulf.ps1 install 'python@3.12'
             throw 'install unexpectedly succeeded without -Experimental'
           } catch {
             if ($_.Exception.Message -notmatch 'install requires -Experimental') {
