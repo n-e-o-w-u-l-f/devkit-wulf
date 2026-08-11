@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/flutter-windows.schema.json",
+  "title": "devkit-wulf Flutter Windows artifact contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "publisher", "product", "channel", "support", "release_index_url", "expected_base_url", "version_pattern", "target", "verification", "non_inheritance_policy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"const": "Flutter Authors / Google"},
+    "product": {"const": "Flutter SDK"},
+    "channel": {"const": "stable"},
+    "support": {"const": "experimental"},
+    "release_index_url": {"const": "https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json"},
+    "expected_base_url": {"const": "https://storage.googleapis.com/flutter_infra_release/releases"},
+    "version_pattern": {"type": "string", "minLength": 10},
+    "target": {
+      "type": "object",
+      "required": ["architecture", "release_architecture", "archive_format", "archive_path_pattern", "root_directory", "destination_template", "path_directory_template", "marker_relative_path", "critical_files"],
+      "properties": {
+        "architecture": {"const": "amd64"},
+        "release_architecture": {"const": "x64"},
+        "archive_format": {"const": "zip"},
+        "archive_path_pattern": {"type": "string", "minLength": 15},
+        "root_directory": {"const": "flutter"},
+        "destination_template": {"const": "{home}/develop/flutter"},
+        "path_directory_template": {"const": "{home}/develop/flutter/bin"},
+        "marker_relative_path": {"const": ".devkit-wulf-artifact.json"},
+        "critical_files": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+$"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": ["managed_integrity", "environment_commands", "notes"],
+      "properties": {
+        "managed_integrity": {"const": true},
+        "environment_commands": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 5}},
+        "notes": {"type": "string", "minLength": 20}
+      },
+      "additionalProperties": false
+    },
+    "non_inheritance_policy": {"type": "array", "minItems": 3, "uniqueItems": true, "items": {"type": "string", "minLength": 15}}
+  },
+  "additionalProperties": false
+}
