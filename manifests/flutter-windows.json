@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "publisher": "Flutter Authors / Google",
+  "product": "Flutter SDK",
+  "channel": "stable",
+  "support": "experimental",
+  "release_index_url": "https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json",
+  "expected_base_url": "https://storage.googleapis.com/flutter_infra_release/releases",
+  "version_pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+  "target": {
+    "architecture": "amd64",
+    "release_architecture": "x64",
+    "archive_format": "zip",
+    "archive_path_pattern": "^stable/windows/[A-Za-z0-9._+-]+\\.zip$",
+    "root_directory": "flutter",
+    "destination_template": "{home}/develop/flutter",
+    "path_directory_template": "{home}/develop/flutter/bin",
+    "marker_relative_path": ".devkit-wulf-artifact.json",
+    "critical_files": [
+      "bin/flutter.bat",
+      "bin/dart.bat"
+    ]
+  },
+  "verification": {
+    "managed_integrity": true,
+    "environment_commands": [
+      "flutter --version",
+      "dart --version"
+    ],
+    "notes": "Managed verification is offline and binds the ownership marker to critical file hashes. Environment command execution is a separate CLI-level smoke test because Flutter may initialize cache state."
+  },
+  "non_inheritance_policy": [
+    "Windows ARM64 is not implied by another Flutter host target",
+    "Linux or macOS artifact support does not imply Windows archive support",
+    "A global Flutter installation does not satisfy managed ownership verification"
+  ]
+}
