@@ -20,9 +20,7 @@ if [ "${2:-}" = "python@3.12" ]; then
             [ -x "$adapter" ] || fail "Python 3.12 macOS adapter is missing or not executable: $adapter"
             exec "$adapter" "$action" "$@"
             ;;
-        *)
-            fail "python@3.12 supports only plan, install and verify."
-            ;;
+        *) fail "python@3.12 supports only plan, install and verify." ;;
     esac
 fi
 
@@ -35,9 +33,20 @@ if [ "${2:-}" = "go@stable" ]; then
             [ -x "$adapter" ] || fail "Go stable macOS adapter is missing or not executable: $adapter"
             exec "$adapter" "$action" "$@"
             ;;
-        *)
-            fail "go@stable supports only plan, install and verify."
+        *) fail "go@stable supports only plan, install and verify." ;;
+    esac
+fi
+
+if [ "${2:-}" = "rust@stable" ]; then
+    case "${1:-}" in
+        plan|install|verify)
+            action=$1
+            shift 2
+            adapter="$SCRIPT_DIR/environments/rust-stable.sh"
+            [ -x "$adapter" ] || fail "Rust stable macOS adapter is missing or not executable: $adapter"
+            exec "$adapter" "$action" "$@"
             ;;
+        *) fail "rust@stable supports only plan, install and verify." ;;
     esac
 fi
 
