@@ -22,6 +22,7 @@ sha256_file() { sha256sum "$1" | awk '{print $1}'; }
 
 MUTATION_LOG="$TEST_ROOT/mutations.log"
 PACKAGE_LOG="$TEST_ROOT/packages.log"
+PM_LOG="$TEST_ROOT/package-managers.log"
 
 privileged() {
   printf '%s\n' "$*" >> "$MUTATION_LOG"
@@ -35,6 +36,9 @@ privileged() {
 }
 
 install_packages() {
+  _test_pm=$1
+  shift
+  printf '%s\n' "$_test_pm" >> "$PM_LOG"
   printf '%s\n' "$*" >> "$PACKAGE_LOG"
   cat > "$BIN_DIR/dotnet" <<'EOF'
 #!/bin/sh
@@ -133,11 +137,13 @@ printf '%s\n' "$plan" | grep 'BC52 8686' >/dev/null
 
 : > "$MUTATION_LOG"
 : > "$PACKAGE_LOG"
+: > "$PM_LOG"
 rm -f "$BIN_DIR/dotnet"
 dotnet_linux_install debian 12 amd64 apt
 [ -f "$TEST_ROOT/keys/microsoft-prod.gpg" ]
 [ -f "$TEST_ROOT/etc/apt/microsoft-prod.list" ]
 grep 'https://packages.microsoft.com/debian/12/prod bookworm main' "$TEST_ROOT/etc/apt/microsoft-prod.list" >/dev/null
+grep '^apt$' "$PM_LOG" >/dev/null
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
 [ "$(tail -n 1 "$STATE_DIR/dotnet-linux.jsonl" | jq -r '.action')" = installed-verified ]
 
@@ -162,7 +168,9 @@ unset FAKE_FPR
 
 rm -f "$BIN_DIR/dotnet"
 : > "$PACKAGE_LOG"
+: > "$PM_LOG"
 dotnet_linux_install fedora 44 amd64 dnf
+grep '^dnf$' "$PM_LOG" >/dev/null
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
 
 rm -f "$BIN_DIR/dotnet"
@@ -173,7 +181,9 @@ if (dotnet_linux_install rhel 10 amd64 dnf >/dev/null 2>&1); then echo "unregist
 [ ! -s "$PACKAGE_LOG" ]
 RHEL_REGISTERED=1
 export RHEL_REGISTERED
+: > "$PM_LOG"
 dotnet_linux_install rhel 10 amd64 dnf
+grep '^dnf$' "$PM_LOG" >/dev/null
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
 
 rm -f "$STATE_DIR/dotnet-linux.jsonl"
