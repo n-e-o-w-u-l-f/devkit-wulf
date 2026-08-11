@@ -39,6 +39,10 @@ if ($Target -eq 'go@stable') {
     throw '[devkit-wulf] go@stable is not enabled on Windows: the current verified Go artifact contract contains Linux and macOS targets only. A Windows-native Go artifact adapter requires a separate reviewed contract.'
 }
 
+if ($Target -eq 'rust@stable') {
+    throw '[devkit-wulf] rust@stable is not enabled on Windows: the current verified rustup-init artifact contract contains Linux and macOS targets only. A Windows-native PowerShell rustup-init artifact adapter requires a separate reviewed contract.'
+}
+
 $Core = Join-Path $RootDir 'bin\devkit-wulf.ps1'
 if (-not (Test-Path -LiteralPath $Core -PathType Leaf)) {
     throw "[devkit-wulf] Windows orchestrator core not found: $Core"

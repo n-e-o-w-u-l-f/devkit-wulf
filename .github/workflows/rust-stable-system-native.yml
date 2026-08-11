@@ -1,0 +1,110 @@
+name: Rust stable system-native contract
+
+on:
+  pull_request:
+    paths:
+      - 'environments/rust/stable.json'
+      - 'environments/schema/verified-artifact-environment.schema.json'
+      - 'manifests/rustup-artifact.json'
+      - 'lib/rustup-artifact.sh'
+      - 'installers/linux/devkit-wulf.sh'
+      - 'installers/wsl/devkit-wulf.sh'
+      - 'installers/macos/devkit-wulf.sh'
+      - 'installers/windows/devkit-wulf.ps1'
+      - 'installers/linux/environments/rust-stable.sh'
+      - 'installers/wsl/environments/rust-stable.sh'
+      - 'installers/macos/environments/rust-stable.sh'
+      - 'tests/validate_rust_stable_system_native.py'
+      - 'tests/validate_go_stable_system_native.py'
+      - 'tests/validate_python_312_routing.py'
+      - 'docs/environments/rust-stable.md'
+      - '.github/workflows/rust-stable-system-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'environments/rust/stable.json'
+      - 'manifests/rustup-artifact.json'
+      - 'lib/rustup-artifact.sh'
+      - 'installers/**/devkit-wulf.*'
+      - 'installers/**/environments/rust-stable.sh'
+      - 'tests/validate_rust_stable_system_native.py'
+      - 'docs/environments/rust-stable.md'
+      - '.github/workflows/rust-stable-system-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Rust and existing system-native routes
+        run: |
+          python3 tests/validate_rust_stable_system_native.py
+          python3 tests/validate_go_stable_system_native.py
+          python3 tests/validate_python_312_routing.py
+
+      - name: Parse POSIX routes and Rust adapters
+        shell: sh
+        run: |
+          set -eu
+          sh -n installers/linux/devkit-wulf.sh
+          sh -n installers/wsl/devkit-wulf.sh
+          sh -n installers/macos/devkit-wulf.sh
+          sh -n installers/linux/environments/rust-stable.sh
+          sh -n installers/wsl/environments/rust-stable.sh
+          sh -n installers/macos/environments/rust-stable.sh
+
+      - name: ShellCheck POSIX routes and Rust adapters
+        run: >-
+          shellcheck
+          installers/linux/devkit-wulf.sh
+          installers/wsl/devkit-wulf.sh
+          installers/macos/devkit-wulf.sh
+          installers/linux/environments/rust-stable.sh
+          installers/wsl/environments/rust-stable.sh
+          installers/macos/environments/rust-stable.sh
+
+      - name: Experimental gate precedes rustup dependencies and network
+        shell: sh
+        run: |
+          set -eu
+          if ./installers/linux/devkit-wulf.sh install rust@stable >gate.out 2>&1; then
+            echo 'rust@stable unexpectedly installed without --experimental' >&2
+            exit 1
+          fi
+          grep -F 'install requires --experimental' gate.out
+
+  windows-fail-closed:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse Windows release entrypoint
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            'installers/windows/devkit-wulf.ps1',
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+      - name: Prove Windows Rust stable fails before generic fallback
+        shell: pwsh
+        run: |
+          try {
+            & .\installers\windows\devkit-wulf.ps1 plan 'rust@stable'
+            throw 'rust@stable unexpectedly resolved on Windows'
+          } catch {
+            if ($_.Exception.Message -notmatch 'not enabled on Windows') {
+              throw
+            }
+          }
