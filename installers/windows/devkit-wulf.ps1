@@ -1,6 +1,3 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-
 param(
     [Parameter(Position = 0)]
     [string]$Command,
@@ -11,6 +8,9 @@ param(
     [switch]$Supported,
     [string]$Platform
 )
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
 if ($env:OS -ne 'Windows_NT') {
     throw '[devkit-wulf] This entrypoint is for native Windows only.'
