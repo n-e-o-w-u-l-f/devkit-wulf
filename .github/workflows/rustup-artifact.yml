@@ -1,0 +1,66 @@
+name: rustup-artifact
+
+on:
+  pull_request:
+    paths:
+      - 'lib/rustup-artifact.sh'
+      - 'manifests/rustup-artifact.json'
+      - 'manifests/schema/rustup-artifact.schema.json'
+      - 'tests/validate_rustup_artifact.py'
+      - 'tests/test_rustup_artifact.sh'
+      - 'docs/environments/rustup-artifact.md'
+      - '.github/workflows/rustup-artifact.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/rustup-artifact.sh'
+      - 'manifests/rustup-artifact.json'
+      - 'manifests/schema/rustup-artifact.schema.json'
+      - 'tests/validate_rustup_artifact.py'
+      - 'tests/test_rustup_artifact.sh'
+      - 'docs/environments/rustup-artifact.md'
+      - '.github/workflows/rustup-artifact.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  linux-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck
+          python -m pip install --disable-pip-version-check jsonschema
+      - name: Validate semantics
+        run: python tests/validate_rustup_artifact.py
+      - name: Validate JSON Schema
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          schema = json.loads(Path('manifests/schema/rustup-artifact.schema.json').read_text())
+          manifest = json.loads(Path('manifests/rustup-artifact.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(manifest)
+          print('rustup artifact JSON Schema validation passed')
+          PY
+      - name: ShellCheck
+        run: shellcheck lib/rustup-artifact.sh tests/test_rustup_artifact.sh
+      - name: Offline artifact fixture
+        run: sh tests/test_rustup_artifact.sh
+
+  macos-static:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install validation tools
+        run: brew install jq shellcheck
+      - name: ShellCheck
+        run: shellcheck lib/rustup-artifact.sh tests/test_rustup_artifact.sh
