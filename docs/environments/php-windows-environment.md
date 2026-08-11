@@ -11,6 +11,28 @@ This orchestration layer combines the two independently verified Windows PHP com
 
 The environment remains `experimental`.
 
+## Central CLI
+
+The native PowerShell CLI now resolves the Windows amd64 PHP environment to the effective strategy:
+
+```text
+php-windows
+```
+
+The declarative environment catalog remains `experimental` and retains `official-archive` as the researched component strategy; central routing selects the combined managed transaction only for native Windows amd64.
+
+Typical flow:
+
+```powershell
+.\bin\devkit-wulf.ps1 plan php
+.\bin\devkit-wulf.ps1 install php -Experimental
+.\bin\devkit-wulf.ps1 verify php
+```
+
+`install php` without `-Experimental` is rejected before managed verification, release-index access, or installation work.
+
+The central `verify php` path verifies the files in the devkit-managed PHP directory. An unrelated global `php.exe` or Composer installation cannot satisfy this gate.
+
 ## Install order
 
 The combined transaction is intentionally ordered:
@@ -29,6 +51,7 @@ The combined plan is non-mutating and reports:
 
 - Windows / amd64 target;
 - `support: experimental`;
+- effective `php-windows` strategy;
 - managed destination;
 - resolved PHP version/build;
 - official PHP archive URL and SHA-256;
@@ -39,15 +62,18 @@ The combined plan is non-mutating and reports:
 - `privilege: none`;
 - the fact that automatic destructive rollback is not promised.
 
+Resolving the current PHP release requires reading the pinned official release metadata, but the plan performs no persistent host mutation.
+
 ## Installation prerequisites
 
-The component helpers retain their existing prerequisites:
+The component helpers retain their security prerequisites:
 
-- `%LOCALAPPDATA%\devkit-wulf` already exists;
-- `%LOCALAPPDATA%\devkit-wulf\php` is already declared in the current process PATH;
+- Windows host architecture is amd64;
+- `%LOCALAPPDATA%\devkit-wulf\php` is declared in the current process PATH;
 - no relevant parent/destination is a reparse point;
-- the state directory is safely writable;
-- Windows host architecture is amd64.
+- the state directory is safely writable.
+
+With the default central CLI state location, the orchestration intent creates `%LOCALAPPDATA%\devkit-wulf` before the runtime component begins, so the managed installation parent exists without a separate manual bootstrap step. When `DEVKIT_WULF_STATE_DIR` is redirected elsewhere, the PHP installation parent is still independently required and is not invented from that custom state path.
 
 The orchestrator does not persistently edit PATH and does not request Administrator elevation.
 
@@ -87,9 +113,11 @@ environment-verified
 
 recorded.
 
+The central CLI then records its own `installed-and-verified` observation only after managed verification succeeds.
+
 ## Final verification
 
-The default final verification requires both managed commands to execute:
+The final verification requires both managed commands to execute:
 
 ```text
 php --version
@@ -106,9 +134,11 @@ The combined layer adds:
 php-windows-environment.jsonl
 ```
 
-to the normal devkit-wulf state directory.
+to the active devkit-wulf state directory.
 
-This state is orchestration-level metadata; the PHP runtime and Composer helpers continue to write their own detailed component state records as well.
+The PHP runtime and Composer helpers continue to write their detailed component state records as well. During central installation the CLI passes its active state directory to the component/orchestration layer so all records remain under the selected state root.
+
+The central state writer also refuses reparse-point state directories/files and non-file state paths.
 
 ## Idempotency
 
@@ -121,19 +151,9 @@ The combined orchestrator can therefore be executed again without intentionally 
 
 A newly published PHP or Composer release may intentionally produce a conflict until an explicit upgrade/migration workflow is implemented. Stable-release rotation must not silently overwrite a managed environment.
 
-## Central CLI integration
+## Support policy
 
-This layer is the transaction primitive required before central Windows `devkit-wulf install php` routing can safely stop failing closed.
-
-A central CLI integration should invoke this orchestration only when:
-
-- host is native Windows amd64;
-- the support manifest still resolves PHP as `experimental`/`official-archive`;
-- the user explicitly opts into experimental installation;
-- plan output is shown first;
-- the existing global PHP verification contract remains authoritative.
-
-The orchestration layer itself does not promote support status.
+Central CLI activation does **not** promote support status. PHP on Windows remains experimental and amd64-only. The route exists to make the already verified components reachable through the normal CLI while preserving their gates.
 
 ## Component documentation
 
