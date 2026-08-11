@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "environment": "python",
+  "version_family": "3.12",
+  "research_date": "2026-08-11",
+  "lifecycle": {
+    "status": "security",
+    "upstream_latest_at_research": "3.12.13",
+    "minimum_upstream_security_patch": "3.12.13",
+    "source_only_security_releases": true,
+    "last_classic_binary_installer_release": "3.12.10",
+    "end_of_security_support": "2028-10"
+  },
+  "components": [
+    "cpython-runtime",
+    "pip-via-selected-runtime",
+    "venv"
+  ],
+  "policy": {
+    "replace_system_python": false,
+    "modify_global_python_aliases": false,
+    "install_global_pip_packages": false,
+    "project_virtual_environment_required": true,
+    "exact_major_minor_required": true,
+    "distro_security_backports_allowed": true
+  },
+  "verification": {
+    "major": 3,
+    "minor": 12,
+    "runtime_command_must_be_adapter_owned_or_package_managed": true,
+    "venv_smoke_test": true,
+    "pip_smoke_test_inside_venv": true
+  },
+  "adapters": {
+    "windows-native": {
+      "support": "experimental",
+      "strategy": "python-install-manager",
+      "runtime_tag": "3.12",
+      "requires": ["pymanager"],
+      "minimum_runtime_patch": "3.12.13",
+      "entrypoint": "installers/windows/environments/python-3.12.ps1"
+    },
+    "linux-native-ubuntu-24.04": {
+      "support": "experimental",
+      "strategy": "apt",
+      "platform_id": "ubuntu",
+      "version_id": "24.04",
+      "packages": ["python3.12", "python3.12-venv"],
+      "version_policy": "distribution-security-backports",
+      "entrypoint": "installers/linux/environments/python-3.12.sh"
+    },
+    "wsl2-ubuntu-24.04": {
+      "support": "experimental",
+      "strategy": "apt",
+      "platform_id": "ubuntu",
+      "version_id": "24.04",
+      "packages": ["python3.12", "python3.12-venv"],
+      "version_policy": "distribution-security-backports",
+      "entrypoint": "installers/wsl/environments/python-3.12.sh"
+    },
+    "macos-native": {
+      "support": "experimental",
+      "strategy": "homebrew-formula",
+      "formula": "python@3.12",
+      "minimum_runtime_patch": "3.12.13",
+      "entrypoint": "installers/macos/environments/python-3.12.sh"
+    },
+    "debian-12": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "Debian 12 default repositories target Python 3.11; no exact native Python 3.12 package path is claimed by this contract."
+    },
+    "debian-13": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "Debian 13 default repositories target Python 3.13; no exact native Python 3.12 package path is claimed by this contract."
+    }
+  },
+  "sources": [
+    "https://devguide.python.org/versions/",
+    "https://peps.python.org/pep-0693/",
+    "https://www.python.org/downloads/release/python-31213/",
+    "https://docs.python.org/3/using/windows.html",
+    "https://packages.ubuntu.com/noble/python3.12-venv",
+    "https://formulae.brew.sh/formula/python@3.12",
+    "https://packages.debian.org/bookworm/python3-venv",
+    "https://packages.debian.org/trixie/python3-venv"
+  ]
+}

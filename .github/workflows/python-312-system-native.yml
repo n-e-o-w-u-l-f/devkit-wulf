@@ -1,0 +1,98 @@
+name: Python 3.12 system-native contract
+
+on:
+  pull_request:
+    paths:
+      - 'environments/python/3.12.json'
+      - 'environments/schema/python-version.schema.json'
+      - 'installers/windows/environments/python-3.12.ps1'
+      - 'installers/linux/environments/python-3.12.sh'
+      - 'installers/wsl/environments/python-3.12.sh'
+      - 'installers/macos/environments/python-3.12.sh'
+      - 'tests/validate_python_312_contract.py'
+      - 'docs/environments/python-3.12.md'
+      - '.github/workflows/python-312-system-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'environments/python/3.12.json'
+      - 'environments/schema/python-version.schema.json'
+      - 'installers/**/environments/python-3.12.*'
+      - 'tests/validate_python_312_contract.py'
+      - 'docs/environments/python-3.12.md'
+      - '.github/workflows/python-312-system-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate shared and system-native contract
+        run: python3 tests/validate_python_312_contract.py
+
+      - name: Parse POSIX adapters
+        shell: sh
+        run: |
+          set -eu
+          sh -n installers/linux/environments/python-3.12.sh
+          sh -n installers/wsl/environments/python-3.12.sh
+          sh -n installers/macos/environments/python-3.12.sh
+
+      - name: ShellCheck adapters
+        run: shellcheck installers/linux/environments/python-3.12.sh installers/wsl/environments/python-3.12.sh installers/macos/environments/python-3.12.sh
+
+  ubuntu-2404-plan:
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exercise non-mutating Ubuntu plan
+        shell: sh
+        run: ./installers/linux/environments/python-3.12.sh plan
+
+      - name: Experimental gate precedes APT mutation
+        shell: sh
+        run: |
+          set -eu
+          if ./installers/linux/environments/python-3.12.sh install >gate.out 2>&1; then
+            echo 'install unexpectedly succeeded without --experimental' >&2
+            exit 1
+          fi
+          grep -F 'install requires --experimental' gate.out
+
+  windows-parse-and-gate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PowerShell adapter
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            'installers/windows/environments/python-3.12.ps1',
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+      - name: Experimental gate precedes manager requirement
+        shell: pwsh
+        run: |
+          try {
+            & .\installers\windows\environments\python-3.12.ps1 install
+            throw 'install unexpectedly succeeded without -Experimental'
+          } catch {
+            if ($_.Exception.Message -notmatch 'install requires -Experimental') {
+              throw
+            }
+          }
