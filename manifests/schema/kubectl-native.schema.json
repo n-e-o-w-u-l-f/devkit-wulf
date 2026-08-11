@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/kubectl-native.schema.json",
+  "title": "devkit-wulf native kubectl stable artifact contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "support", "publisher", "version", "targets"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "support": {"const": "experimental"},
+    "publisher": {"const": "Kubernetes SIG CLI"},
+    "version": {
+      "type": "object",
+      "required": ["resolver", "url", "pattern"],
+      "properties": {
+        "resolver": {"const": "text-url"},
+        "url": {"const": "https://dl.k8s.io/release/stable.txt"},
+        "pattern": {"const": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      },
+      "additionalProperties": false
+    },
+    "targets": {
+      "type": "object",
+      "required": ["windows", "macos"],
+      "properties": {
+        "windows": {"$ref": "#/$defs/windowsTarget"},
+        "macos": {"$ref": "#/$defs/macosTarget"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "commonTargetProperties": {
+      "type": "object"
+    },
+    "windowsTarget": {
+      "type": "object",
+      "required": ["source", "architectures", "filename", "checksum_filename", "url_template", "checksum_url_template", "root_template", "path_directory_relative", "marker_relative_path", "mode", "integrity", "privileged", "path_mutation"],
+      "properties": {
+        "source": {"const": "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/"},
+        "architectures": {
+          "type": "object",
+          "required": ["amd64"],
+          "properties": {"amd64": {"const": "amd64"}},
+          "additionalProperties": false
+        },
+        "filename": {"const": "kubectl.exe"},
+        "checksum_filename": {"const": "kubectl.exe.sha256"},
+        "url_template": {"const": "https://dl.k8s.io/release/{version}/bin/windows/{architecture}/kubectl.exe"},
+        "checksum_url_template": {"const": "https://dl.k8s.io/release/{version}/bin/windows/{architecture}/kubectl.exe.sha256"},
+        "root_template": {"const": "{localappdata}/devkit-wulf/kubectl"},
+        "path_directory_relative": {"const": "bin"},
+        "marker_relative_path": {"const": ".devkit-wulf-kubectl.json"},
+        "mode": {"const": "native-windows"},
+        "integrity": {"const": "sha256-sidecar"},
+        "privileged": {"const": false},
+        "path_mutation": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "macosTarget": {
+      "type": "object",
+      "required": ["source", "architectures", "filename", "checksum_filename", "url_template", "checksum_url_template", "root_template", "path_directory_relative", "marker_relative_path", "mode", "integrity", "privileged", "path_mutation"],
+      "properties": {
+        "source": {"const": "https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/"},
+        "architectures": {
+          "type": "object",
+          "required": ["amd64", "arm64"],
+          "properties": {"amd64": {"const": "amd64"}, "arm64": {"const": "arm64"}},
+          "additionalProperties": false
+        },
+        "filename": {"const": "kubectl"},
+        "checksum_filename": {"const": "kubectl.sha256"},
+        "url_template": {"const": "https://dl.k8s.io/release/{version}/bin/darwin/{architecture}/kubectl"},
+        "checksum_url_template": {"const": "https://dl.k8s.io/release/{version}/bin/darwin/{architecture}/kubectl.sha256"},
+        "root_template": {"const": "{home}/.local/share/devkit-wulf/kubectl"},
+        "path_directory_relative": {"const": "bin"},
+        "marker_relative_path": {"const": ".devkit-wulf-kubectl.json"},
+        "mode": {"const": "0755"},
+        "integrity": {"const": "sha256-sidecar"},
+        "privileged": {"const": false},
+        "path_mutation": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  }
+}
