@@ -1,0 +1,57 @@
+name: jetbrains-toolbox
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/jetbrains-toolbox.json'
+      - 'manifests/schema/jetbrains-toolbox.schema.json'
+      - 'lib/jetbrains-toolbox.sh'
+      - 'tests/validate_jetbrains_toolbox.py'
+      - 'tests/test_jetbrains_toolbox.sh'
+      - 'docs/environments/jetbrains-toolbox.md'
+      - '.github/workflows/jetbrains-toolbox.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifests/jetbrains-toolbox.json'
+      - 'manifests/schema/jetbrains-toolbox.schema.json'
+      - 'lib/jetbrains-toolbox.sh'
+      - 'tests/validate_jetbrains_toolbox.py'
+      - 'tests/test_jetbrains_toolbox.sh'
+      - '.github/workflows/jetbrains-toolbox.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck
+          python -m pip install --disable-pip-version-check jsonschema
+      - name: Validate JetBrains manifest semantics
+        run: python tests/validate_jetbrains_toolbox.py
+      - name: Validate JetBrains JSON Schema
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          root = Path('.')
+          schema = json.loads((root / 'manifests/schema/jetbrains-toolbox.schema.json').read_text())
+          manifest = json.loads((root / 'manifests/jetbrains-toolbox.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(manifest)
+          print('JetBrains Toolbox JSON Schema validation passed')
+          PY
+      - name: ShellCheck JetBrains helper and fixture
+        run: shellcheck lib/jetbrains-toolbox.sh tests/test_jetbrains_toolbox.sh
+      - name: Offline JetBrains artifact integration test
+        run: sh tests/test_jetbrains_toolbox.sh
