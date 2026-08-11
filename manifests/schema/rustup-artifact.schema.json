@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/rustup-artifact.schema.json",
+  "title": "devkit-wulf verified rustup-init artifact contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "publisher", "product", "support", "source_base", "checksum_suffix", "install", "targets", "verification", "policy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"const": "The Rust Project Developers"},
+    "product": {"const": "rustup-init"},
+    "support": {"const": "experimental"},
+    "source_base": {"const": "https://static.rust-lang.org/rustup/dist"},
+    "checksum_suffix": {"const": ".sha256"},
+    "install": {
+      "type": "object",
+      "required": ["profile", "default_toolchain", "modify_path", "cargo_home_template", "rustup_home_template", "path_directory_template", "marker_template"],
+      "properties": {
+        "profile": {"const": "minimal"},
+        "default_toolchain": {"const": "stable"},
+        "modify_path": {"const": false},
+        "cargo_home_template": {"const": "{home}/.local/share/devkit-wulf/cargo"},
+        "rustup_home_template": {"const": "{home}/.local/share/devkit-wulf/rustup"},
+        "path_directory_template": {"const": "{home}/.local/share/devkit-wulf/cargo/bin"},
+        "marker_template": {"const": "{home}/.local/share/devkit-wulf/cargo/.devkit-wulf-rustup.json"}
+      },
+      "additionalProperties": false
+    },
+    "targets": {
+      "type": "object",
+      "required": ["linux", "macos"],
+      "properties": {
+        "linux": {"$ref": "#/$defs/target"},
+        "macos": {"$ref": "#/$defs/target"}
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": ["managed_binaries", "commands"],
+      "properties": {
+        "managed_binaries": {"const": ["rustup", "rustc", "cargo"]},
+        "commands": {"const": ["rustup --version", "rustc --version", "cargo --version"]}
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["linux_libc", "no_remote_script_execution", "no_path_mutation", "no_privilege", "safe_remove"],
+      "properties": {
+        "linux_libc": {"const": "glibc"},
+        "no_remote_script_execution": {"const": true},
+        "no_path_mutation": {"const": true},
+        "no_privilege": {"const": true},
+        "safe_remove": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "required": ["binary_name", "architectures"],
+      "properties": {
+        "binary_name": {"const": "rustup-init"},
+        "architectures": {
+          "type": "object",
+          "minProperties": 2,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["triple"],
+            "properties": {
+              "triple": {"type": "string", "pattern": "^[A-Za-z0-9_]+-[A-Za-z0-9_]+-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)?$"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
