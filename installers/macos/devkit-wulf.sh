@@ -14,4 +14,19 @@ CORE="$ROOT_DIR/bin/devkit-wulf"
 [ -f "$CORE" ] || fail "POSIX orchestrator core not found: $CORE"
 [ -x "$CORE" ] || fail "POSIX orchestrator core is not executable: $CORE"
 
+if [ "${2:-}" = "python@3.12" ]; then
+    case "${1:-}" in
+        plan|install|verify)
+            action=$1
+            shift 2
+            adapter="$SCRIPT_DIR/environments/python-3.12.sh"
+            [ -x "$adapter" ] || fail "Python 3.12 macOS adapter is missing or not executable: $adapter"
+            exec "$adapter" "$action" "$@"
+            ;;
+        *)
+            fail "python@3.12 supports only plan, install and verify."
+            ;;
+    esac
+fi
+
 exec "$CORE" "$@"
