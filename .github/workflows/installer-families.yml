@@ -1,0 +1,81 @@
+name: Installer family contract
+
+on:
+  pull_request:
+    paths:
+      - 'installers/**'
+      - 'environments/**'
+      - 'manifests/installer-families.json'
+      - 'manifests/schema/installer-families.schema.json'
+      - 'tests/validate_installer_families.py'
+      - 'docs/installer-architecture.md'
+      - '.github/workflows/installer-families.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'installers/**'
+      - 'environments/**'
+      - 'manifests/installer-families.json'
+      - 'manifests/schema/installer-families.schema.json'
+      - 'tests/validate_installer_families.py'
+      - 'docs/installer-architecture.md'
+      - '.github/workflows/installer-families.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate installer family contract
+        run: python3 tests/validate_installer_families.py
+
+      - name: Parse POSIX entrypoints
+        shell: sh
+        run: |
+          set -eu
+          for script in \
+            installers/linux/devkit-wulf.sh \
+            installers/wsl/devkit-wulf.sh \
+            installers/macos/devkit-wulf.sh \
+            installers/bsd/devkit-wulf.sh \
+            installers/solaris/devkit-wulf.sh \
+            installers/aix/devkit-wulf.sh
+          do
+            sh -n "$script"
+          done
+
+      - name: Prove non-Linux entrypoints fail closed on Linux
+        shell: sh
+        run: |
+          set -eu
+          for script in \
+            installers/wsl/devkit-wulf.sh \
+            installers/macos/devkit-wulf.sh \
+            installers/bsd/devkit-wulf.sh \
+            installers/solaris/devkit-wulf.sh \
+            installers/aix/devkit-wulf.sh
+          do
+            if sh "$script" detect >/dev/null 2>&1; then
+              echo "entrypoint unexpectedly accepted Ubuntu host: $script" >&2
+              exit 1
+            fi
+          done
+
+      - name: Parse Windows PowerShell entrypoint
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            'installers/windows/devkit-wulf.ps1',
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
