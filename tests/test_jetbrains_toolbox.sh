@@ -5,7 +5,12 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-jetbrains-test.XXXXXX")
 STATE_DIR="$TEST_ROOT/state"
 JETBRAINS_TOOLBOX_MANIFEST="$TEST_ROOT/jetbrains-toolbox.json"
-trap 'rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
+cleanup_test_root() {
+  find "$TEST_ROOT" -type l -delete 2>/dev/null || true
+  find "$TEST_ROOT" -type f -delete 2>/dev/null || true
+  find "$TEST_ROOT" -depth -type d -exec rmdir {} \; 2>/dev/null || true
+}
+trap 'cleanup_test_root' EXIT HUP INT TERM
 
 command -v jq >/dev/null 2>&1 || { echo "jq required" >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "tar required" >&2; exit 1; }
@@ -94,25 +99,12 @@ download_https() {
   dest=$2
   printf '%s\n' "$url" >> "$DOWNLOAD_LOG"
   case "$url" in
-    'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release')
-      cp "$TEST_ROOT/releases.json" "$dest"
-      ;;
-    https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345.tar.gz)
-      cp "$ARCHIVE" "$dest"
-      ;;
-    https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345.tar.gz.sha256)
-      printf '%s  jetbrains-toolbox-3.1.2.12345.tar.gz\n' "$ARCHIVE_SHA" > "$dest"
-      ;;
-    https://download-cdn.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345-arm64.tar.gz)
-      cp "$ARCHIVE" "$dest"
-      ;;
-    https://download-cdn.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345-arm64.tar.gz.sha256)
-      printf '%s\n' "$ARCHIVE_SHA" > "$dest"
-      ;;
-    *)
-      echo "unexpected fixture URL: $url" >&2
-      return 97
-      ;;
+    'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release') cp "$TEST_ROOT/releases.json" "$dest" ;;
+    https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345.tar.gz) cp "$ARCHIVE" "$dest" ;;
+    https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345.tar.gz.sha256) printf '%s  jetbrains-toolbox-3.1.2.12345.tar.gz\n' "$ARCHIVE_SHA" > "$dest" ;;
+    https://download-cdn.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345-arm64.tar.gz) cp "$ARCHIVE" "$dest" ;;
+    https://download-cdn.jetbrains.com/toolbox/jetbrains-toolbox-3.1.2.12345-arm64.tar.gz.sha256) printf '%s\n' "$ARCHIVE_SHA" > "$dest" ;;
+    *) echo "unexpected fixture URL: $url" >&2; return 97 ;;
   esac
 }
 
@@ -123,10 +115,7 @@ amd64_target=$(jetbrains_toolbox_target_json amd64)
 [ "$(printf '%s' "$amd64_target" | jq -r '.download_key')" = linux ]
 arm64_target=$(jetbrains_toolbox_target_json arm64)
 [ "$(printf '%s' "$arm64_target" | jq -r '.download_key')" = linuxARM64 ]
-if jetbrains_toolbox_target_json riscv64 | grep -q .; then
-  echo "unmapped architecture unexpectedly resolved" >&2
-  exit 1
-fi
+if jetbrains_toolbox_target_json riscv64 | grep -q .; then echo "unmapped architecture unexpectedly resolved" >&2; exit 1; fi
 
 release=$(jetbrains_toolbox_resolve_release amd64)
 [ "$(printf '%s' "$release" | jq -r '.version')" = 3.1.2.12345 ]
@@ -145,6 +134,7 @@ DEST="$HOME/.local/bin/jetbrains-toolbox"
 MARKER="$HOME/.local/bin/.jetbrains-toolbox.devkit-wulf.json"
 [ -x "$DEST" ]
 [ -f "$MARKER" ]
+verify_jetbrains_toolbox amd64
 "$DEST" --version | grep '3.1.2.12345' >/dev/null
 EXEC_SHA=$(sha256_file "$DEST")
 jq -e --arg a "$ARCHIVE_SHA" --arg e "$EXEC_SHA" '.environment == "jetbrains" and .version == "3.1.2.12345" and .archive_sha256 == $a and .executable_sha256 == $e' "$MARKER" >/dev/null
@@ -152,22 +142,27 @@ grep '"action":"installed-verified-artifact"' "$STATE_DIR/jetbrains-toolbox.json
 
 # Exact second install must be idempotent.
 install_jetbrains_toolbox amd64
+verify_jetbrains_toolbox amd64
 grep '"action":"observed-exact-artifact"' "$STATE_DIR/jetbrains-toolbox.jsonl" >/dev/null
+
+# A modified managed binary invalidates offline managed verification.
+printf '\n# tampered\n' >> "$DEST"
+if verify_jetbrains_toolbox amd64; then echo "tampered managed binary unexpectedly verified" >&2; exit 1; fi
+# Restore from archive fixture without changing marker semantics.
+tar -xOf "$ARCHIVE" jetbrains-toolbox-3.1.2.12345/jetbrains-toolbox > "$DEST"
+chmod 0755 "$DEST"
+verify_jetbrains_toolbox amd64
 
 # Marker loss means ownership can no longer be proven; do not adopt the binary.
 rm -f "$MARKER"
-if install_jetbrains_toolbox amd64 >/dev/null 2>&1; then
-  echo "unowned existing JetBrains Toolbox binary unexpectedly accepted" >&2
-  exit 1
-fi
+if verify_jetbrains_toolbox amd64; then echo "markerless binary unexpectedly verified" >&2; exit 1; fi
+if install_jetbrains_toolbox amd64 >/dev/null 2>&1; then echo "unowned existing JetBrains Toolbox binary unexpectedly accepted" >&2; exit 1; fi
 
-# Restore a clean target for remaining negative tests.
 rm -f "$DEST"
 : > "$DOWNLOAD_LOG"
 
 # A checksum mismatch must hard-fail before destination mutation.
 BAD_SHA=$(printf '0%.0s' $(seq 1 64))
-download_https_original=$(command -v true)
 download_https() {
   url=$1
   dest=$2
@@ -179,10 +174,7 @@ download_https() {
     *) return 97 ;;
   esac
 }
-if install_jetbrains_toolbox amd64 >/dev/null 2>&1; then
-  echo "checksum mismatch unexpectedly accepted" >&2
-  exit 1
-fi
+if install_jetbrains_toolbox amd64 >/dev/null 2>&1; then echo "checksum mismatch unexpectedly accepted" >&2; exit 1; fi
 [ ! -e "$DEST" ]
 
 # An unapproved download host in official-looking JSON must fail at GATE-04.
@@ -195,10 +187,7 @@ download_https() {
     *) echo "unexpected network access after bad host metadata: $url" >&2; return 96 ;;
   esac
 }
-if jetbrains_toolbox_resolve_release amd64 >/dev/null 2>&1; then
-  echo "unapproved JetBrains download host unexpectedly accepted" >&2
-  exit 1
-fi
+if jetbrains_toolbox_resolve_release amd64 >/dev/null 2>&1; then echo "unapproved JetBrains download host unexpectedly accepted" >&2; exit 1; fi
 
 # Archive content must remain under the exact versioned root.
 mkdir -p "$TEST_ROOT/wrong-root/not-toolbox"
@@ -213,17 +202,11 @@ fi
 # State symlinks remain fail-closed.
 rm -f "$STATE_DIR/jetbrains-toolbox.jsonl"
 ln -s "$TEST_ROOT/elsewhere.jsonl" "$STATE_DIR/jetbrains-toolbox.jsonl"
-if jetbrains_toolbox_state_ready; then
-  echo "JetBrains state symlink unexpectedly accepted" >&2
-  exit 1
-fi
+if jetbrains_toolbox_state_ready; then echo "JetBrains state symlink unexpectedly accepted" >&2; exit 1; fi
 rm -f "$STATE_DIR/jetbrains-toolbox.jsonl"
 rmdir "$STATE_DIR"
 mkdir "$TEST_ROOT/alternate-state"
 ln -s "$TEST_ROOT/alternate-state" "$STATE_DIR"
-if jetbrains_toolbox_state_ready; then
-  echo "JetBrains state-directory symlink unexpectedly accepted" >&2
-  exit 1
-fi
+if jetbrains_toolbox_state_ready; then echo "JetBrains state-directory symlink unexpectedly accepted" >&2; exit 1; fi
 
 echo "JetBrains Toolbox offline artifact tests passed"
