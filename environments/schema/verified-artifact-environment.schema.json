@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/environments/schema/verified-artifact-environment.schema.json",
+  "title": "devkit-wulf shared verified artifact environment contract",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "environment",
+    "selector",
+    "research_date",
+    "artifact_manifest",
+    "policy",
+    "verification",
+    "adapters"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "environment": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "selector": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*@[A-Za-z0-9._+-]+$"},
+    "research_date": {"type": "string", "format": "date"},
+    "artifact_manifest": {"type": "string", "pattern": "^manifests/[a-z0-9._-]+\\.json$"},
+    "policy": {
+      "type": "object",
+      "required": ["support", "no_path_mutation", "no_privilege", "automatic_upgrade"],
+      "properties": {
+        "support": {"const": "experimental"},
+        "no_path_mutation": {"const": true},
+        "no_privilege": {"const": true},
+        "automatic_upgrade": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": ["managed_artifact_required", "critical_hashes_required", "runtime_smoke_required"],
+      "properties": {
+        "managed_artifact_required": {"const": true},
+        "critical_hashes_required": {"const": true},
+        "runtime_smoke_required": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "adapters": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/activeAdapter"},
+          {"$ref": "#/$defs/unsupportedAdapter"}
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "activeAdapter": {
+      "type": "object",
+      "required": ["support", "strategy", "artifact_platform", "architectures", "helper", "entrypoint"],
+      "properties": {
+        "support": {"const": "experimental"},
+        "strategy": {"const": "verified-artifact-helper"},
+        "artifact_platform": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z0-9_+-]+$"}
+        },
+        "helper": {"type": "string", "pattern": "^lib/[a-z0-9._-]+\\.sh$"},
+        "entrypoint": {"type": "string", "pattern": "^installers/(linux|wsl|macos)/environments/[a-z0-9._-]+\\.sh$"}
+      },
+      "additionalProperties": false
+    },
+    "unsupportedAdapter": {
+      "type": "object",
+      "required": ["support", "strategy", "reason"],
+      "properties": {
+        "support": {"const": "unsupported"},
+        "strategy": {"const": "unsupported"},
+        "reason": {"type": "string", "minLength": 20}
+      },
+      "additionalProperties": false
+    }
+  }
+}
