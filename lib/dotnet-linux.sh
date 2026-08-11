@@ -183,6 +183,7 @@ _dotnet_install_microsoft_repo() {
   _dw_dotnet_target=$4
   _dw_dotnet_entry=$5
   _dw_dotnet_repo=$(printf '%s' "$_dw_dotnet_entry" | jq -c '.repository')
+  _dw_dotnet_pm=$(printf '%s' "$_dw_dotnet_target" | jq -r '.package_manager')
   _dw_dotnet_tmp=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-dotnet.XXXXXX") || die "unable to create .NET staging directory"
   trap '_dotnet_cleanup_staging' EXIT HUP INT TERM
   _dw_dotnet_staged_key=$(_dotnet_stage_key "$_dw_dotnet_repo" "$_dw_dotnet_tmp")
@@ -205,7 +206,7 @@ _dotnet_install_microsoft_repo() {
       privileged zypper --non-interactive --gpg-auto-import-keys refresh "$_dw_dotnet_repoid"
       ;;
   esac
-  install_packages "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
+  install_packages "$_dw_dotnet_pm" "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
   _dotnet_cleanup_staging
   _dw_dotnet_tmp=
   trap - EXIT HUP INT TERM
@@ -241,7 +242,7 @@ dotnet_linux_install() {
     distribution|distribution-appstream)
       _dotnet_check_distribution_preconditions "$_dw_dotnet_platform" "$_dw_dotnet_target"
       _dotnet_record_state mutation-intent "$_dw_dotnet_platform" "$_dw_dotnet_version" "$_dw_dotnet_arch" "$_dw_dotnet_source"
-      install_packages "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
+      install_packages "$_dw_dotnet_pm" "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
       ;;
     *) die "unsupported .NET package source: $_dw_dotnet_source" ;;
   esac
