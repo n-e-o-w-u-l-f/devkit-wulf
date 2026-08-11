@@ -141,6 +141,12 @@ def main() -> None:
                         f"{env_id}/{target_id}: expected fingerprint must normalize to 40 hex characters"
                     )
 
+            if target.get("localize_key_urls"):
+                assert "repository_url" in target, f"{env_id}/{target_id}: key localization requires remote repository file"
+                assert all(key.get("destination", "").startswith("/") for key in target["keys"]), (
+                    f"{env_id}/{target_id}: every localized key requires an absolute destination"
+                )
+
             for conflict in target.get("conflicting_packages", []):
                 assert conflict not in packages_for(target), f"{env_id}/{target_id}: install package also listed as conflict"
 
@@ -160,8 +166,11 @@ def main() -> None:
             assert env_entry["strategy"] in {"manual", "package-manager"}
             assert packages_for(native)
             assert_https(native["documentation"])
+            for service in native.get("services", []):
+                assert service["name"]
+                assert service["action"] in {"start", "enable-now"}
 
-    # OpenTofu regression contract from the v1 repository layer.
+    # OpenTofu regression contract from the original repository layer.
     opentofu = catalog["repositories"]["opentofu"]
     assert opentofu["publisher"] == "OpenTofu / Linux Foundation"
     tofu_targets = opentofu["targets"]
@@ -183,10 +192,11 @@ def main() -> None:
 
     tofu_opensuse = tofu_targets["family:opensuse"]
     assert tofu_opensuse["repository_signature_required"] is True
+    assert tofu_opensuse["refresh_repositories"] == ["opentofu", "opentofu-source"]
     assert any(line.strip() == "repo_gpgcheck=1" for line in tofu_opensuse["repository_content"].splitlines())
 
-    # Docker's tested-vendor paths are intentionally platform-specific so
-    # derivatives don't inherit a vendor claim solely from a family match.
+    # Docker vendor paths are intentionally platform-specific so derivatives do
+    # not inherit a vendor claim solely from package-manager compatibility.
     docker = catalog["repositories"]["docker"]
     assert docker["publisher"] == "Docker, Inc."
     docker_targets = docker["targets"]
@@ -219,8 +229,13 @@ def main() -> None:
     expected_fingerprint = "060A61C51B558A7F742B77AAC52FEB6B621E9F35"
     for platform_id in ("fedora", "rhel"):
         target = docker_targets[f"platform:{platform_id}"]
+        key = target["keys"][0]
         assert target["repository_url"] == f"https://download.docker.com/linux/{platform_id}/docker-ce.repo"
-        assert normalized_fingerprint(target["keys"][0]["fingerprint"]) == expected_fingerprint
+        assert normalized_fingerprint(key["fingerprint"]) == expected_fingerprint
+        assert key["transform"] == "copy"
+        assert key["destination"] == "/etc/pki/rpm-gpg/docker-ce.gpg"
+        assert target["key_directory"] == "/etc/pki/rpm-gpg"
+        assert target["localize_key_urls"] is True
         assert "gpgcheck=1" in target["repository_required_substrings"]
         assert f"https://download.docker.com/linux/{platform_id}/gpg" in target["repository_required_substrings"]
         assert target["services"] == [{"name": "docker", "action": "enable-now"}]
@@ -233,6 +248,7 @@ def main() -> None:
     docker_native = catalog["native_packages"]["docker"]
     assert set(docker_native) == {"opensuse-leap", "opensuse-tumbleweed"}
     assert all(entry["package_manager"] == "zypper" and entry["package"] == "docker" for entry in docker_native.values())
+    assert all(entry["services"] == [{"name": "docker", "action": "enable-now"}] for entry in docker_native.values())
 
     serialized = json.dumps(catalog).lower()
     assert "skip-verify" not in serialized
