@@ -163,6 +163,7 @@ plan_vendor_repository() {
   printf '  package_signature_required: %s\n' "$(printf '%s' "$_dw_repo_target" | jq -r '.package_signature_required')"
   printf '  repository_signature_required: %s\n' "$(printf '%s' "$_dw_repo_target" | jq -r '.repository_signature_required')"
   printf '  tls_verification_required: %s\n' "$(printf '%s' "$_dw_repo_target" | jq -r '.tls_verification_required')"
+  printf '  localize_key_urls: %s\n' "$(printf '%s' "$_dw_repo_target" | jq -r '.localize_key_urls // false')"
   printf '  privilege: required-for-package-repository-and-service-mutation\n'
   printf '  conflict_policy: preflight-refuse-installed-conflicts-or-different-content\n'
   printf '  prerequisites:\n'
@@ -172,7 +173,7 @@ plan_vendor_repository() {
   _dw_repo_conflicts=$(printf '%s' "$_dw_repo_target" | jq -r '.conflicting_packages[]?')
   if [ -n "$_dw_repo_conflicts" ]; then printf '%s\n' "$_dw_repo_conflicts" | sed 's/^/    - /'; else printf '    - none\n'; fi
   printf '  keys:\n'
-  printf '%s' "$_dw_repo_target" | jq -r '.keys[] | "    - " + .url + " [" + .transform + "]" + (if .fingerprint then " fingerprint=" + .fingerprint else "" end)'
+  printf '%s' "$_dw_repo_target" | jq -r '.keys[] | "    - " + .url + " [" + .transform + "]" + (if .destination then " -> " + .destination else "" end) + (if .fingerprint then " fingerprint=" + .fingerprint else "" end)'
   _repository_services_plan "$_dw_repo_target"
 }
 
@@ -263,6 +264,36 @@ _repository_validate_config_security() {
   fi
 }
 
+_repository_localize_key_urls() {
+  _dw_repo_target=$1
+  _dw_repo_file=$2
+  [ "$(printf '%s' "$_dw_repo_target" | jq -r '.localize_key_urls // false')" = true ] || return 0
+  _dw_repo_local_tmp="$_dw_repo_file.local"
+
+  while IFS= read -r _dw_repo_key; do
+    [ -n "$_dw_repo_key" ] || continue
+    _dw_repo_key_url=$(printf '%s' "$_dw_repo_key" | jq -r '.url')
+    _dw_repo_key_destination=$(printf '%s' "$_dw_repo_key" | jq -r '.destination // empty')
+    [ -n "$_dw_repo_key_destination" ] || die "localize_key_urls requires a destination for every repository key"
+    awk -v old="$_dw_repo_key_url" -v new="file://$_dw_repo_key_destination" '
+      {
+        line = $0
+        output = ""
+        while ((position = index(line, old)) > 0) {
+          output = output substr(line, 1, position - 1) new
+          line = substr(line, position + length(old))
+        }
+        print output line
+      }
+    ' "$_dw_repo_file" > "$_dw_repo_local_tmp"
+    mv "$_dw_repo_local_tmp" "$_dw_repo_file"
+    grep -Fq -- "$_dw_repo_key_url" "$_dw_repo_file" && die "GATE-05 failed to localize repository key URL: $_dw_repo_key_url"
+    grep -Fq -- "file://$_dw_repo_key_destination" "$_dw_repo_file" || die "GATE-05 localized repository key path not present"
+  done <<EOF
+$(printf '%s' "$_dw_repo_target" | jq -c '.keys[]')
+EOF
+}
+
 _repository_stage_configuration() {
   _dw_repo_target=$1
   _dw_repo_tmpdir=$2
@@ -292,6 +323,8 @@ EOF
   else
     die "repository target has no configuration source"
   fi
+
+  _repository_localize_key_urls "$_dw_repo_target" "$_dw_repo_dest"
   _repository_validate_config_security "$_dw_repo_dest"
   printf '%s' "$_dw_repo_dest"
 }
