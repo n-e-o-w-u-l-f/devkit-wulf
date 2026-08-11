@@ -1,0 +1,69 @@
+name: flutter-windows
+
+on:
+  pull_request:
+    paths:
+      - 'lib/flutter-windows.ps1'
+      - 'manifests/flutter-windows.json'
+      - 'manifests/schema/flutter-windows.schema.json'
+      - 'tests/validate_flutter_windows.py'
+      - 'tests/test_flutter_windows.ps1'
+      - 'docs/environments/flutter-windows.md'
+      - '.github/workflows/flutter-windows.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/flutter-windows.ps1'
+      - 'manifests/flutter-windows.json'
+      - 'manifests/schema/flutter-windows.schema.json'
+      - 'tests/validate_flutter_windows.py'
+      - 'tests/test_flutter_windows.ps1'
+      - 'docs/environments/flutter-windows.md'
+      - '.github/workflows/flutter-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate semantic contract
+        shell: pwsh
+        run: python tests/validate_flutter_windows.py
+      - name: Validate JSON Schema
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check jsonschema
+          @'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          schema = json.loads(Path('manifests/schema/flutter-windows.schema.json').read_text())
+          manifest = json.loads(Path('manifests/flutter-windows.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(manifest)
+          print('Flutter Windows JSON Schema validation passed')
+          '@ | python -
+
+  offline-artifact:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      - name: Analyze Flutter Windows helper and fixture
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path lib/flutter-windows.ps1,tests/test_flutter_windows.ps1 -Severity Error,Warning
+          $results | Format-Table -AutoSize
+          $blocking = @($results | Where-Object Severity -eq 'Error')
+          if ($blocking.Count -gt 0) { throw 'Blocking PSScriptAnalyzer errors detected' }
+      - name: Run offline artifact fixture
+        shell: pwsh
+        run: .\tests\test_flutter_windows.ps1
