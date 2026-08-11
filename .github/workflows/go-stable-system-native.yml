@@ -1,0 +1,110 @@
+name: Go stable system-native contract
+
+on:
+  pull_request:
+    paths:
+      - 'environments/go/stable.json'
+      - 'environments/schema/verified-artifact-environment.schema.json'
+      - 'manifests/go-artifact.json'
+      - 'lib/go-artifact.sh'
+      - 'installers/linux/devkit-wulf.sh'
+      - 'installers/wsl/devkit-wulf.sh'
+      - 'installers/macos/devkit-wulf.sh'
+      - 'installers/windows/devkit-wulf.ps1'
+      - 'installers/linux/environments/go-stable.sh'
+      - 'installers/wsl/environments/go-stable.sh'
+      - 'installers/macos/environments/go-stable.sh'
+      - 'tests/validate_go_stable_system_native.py'
+      - 'tests/validate_python_312_routing.py'
+      - 'docs/environments/go-stable.md'
+      - '.github/workflows/go-stable-system-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'environments/go/stable.json'
+      - 'environments/schema/verified-artifact-environment.schema.json'
+      - 'manifests/go-artifact.json'
+      - 'lib/go-artifact.sh'
+      - 'installers/**/devkit-wulf.*'
+      - 'installers/**/environments/go-stable.sh'
+      - 'tests/validate_go_stable_system_native.py'
+      - 'tests/validate_python_312_routing.py'
+      - 'docs/environments/go-stable.md'
+      - '.github/workflows/go-stable-system-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Go stable system-native contract
+        run: |
+          python3 tests/validate_go_stable_system_native.py
+          python3 tests/validate_python_312_routing.py
+
+      - name: Parse POSIX routes and adapters
+        shell: sh
+        run: |
+          set -eu
+          sh -n installers/linux/devkit-wulf.sh
+          sh -n installers/wsl/devkit-wulf.sh
+          sh -n installers/macos/devkit-wulf.sh
+          sh -n installers/linux/environments/go-stable.sh
+          sh -n installers/wsl/environments/go-stable.sh
+          sh -n installers/macos/environments/go-stable.sh
+
+      - name: ShellCheck POSIX routes and adapters
+        run: >-
+          shellcheck
+          installers/linux/devkit-wulf.sh
+          installers/wsl/devkit-wulf.sh
+          installers/macos/devkit-wulf.sh
+          installers/linux/environments/go-stable.sh
+          installers/wsl/environments/go-stable.sh
+          installers/macos/environments/go-stable.sh
+
+      - name: Experimental gate precedes Go artifact dependencies and network
+        shell: sh
+        run: |
+          set -eu
+          if ./installers/linux/devkit-wulf.sh install go@stable >gate.out 2>&1; then
+            echo 'go@stable unexpectedly installed without --experimental' >&2
+            exit 1
+          fi
+          grep -F 'install requires --experimental' gate.out
+
+  windows-fail-closed:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse Windows entrypoint
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            'installers/windows/devkit-wulf.ps1',
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+      - name: Prove Windows Go stable fails before generic fallback
+        shell: pwsh
+        run: |
+          try {
+            & .\installers\windows\devkit-wulf.ps1 plan 'go@stable'
+            throw 'go@stable unexpectedly resolved on Windows'
+          } catch {
+            if ($_.Exception.Message -notmatch 'not enabled on Windows') {
+              throw
+            }
+          }
