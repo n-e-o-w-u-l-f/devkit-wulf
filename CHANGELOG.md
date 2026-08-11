@@ -34,6 +34,7 @@ The project follows semantic versioning once a stable public release line is est
 - Release-facing documentation now distinguishes the generic `bin/` orchestration cores from the system-native `installers/` boundary.
 - Roadmap language now separates implemented product-specific artifact lanes from still-open generic/release gates.
 - Documentation explicitly distinguishes staged adapters from centrally routed selectors and from promoted support.
+- English, German, French, Polish, Simplified Chinese, Russian and Spanish READMEs are synchronized to the same 2026-08-11 release boundary, canonical `xcode` ID, selector-routing matrix, CI limitation and pre-1.0 support policy.
 
 ### Known issues / gates
 
@@ -44,4 +45,3 @@ The project follows semantic versioning once a stable public release line is est
 - `profiles/profiles.json` and `tests/validate_manifests.py` still reference `apple` while the canonical environment ID is `xcode`; see issue #34.
 - The Go stable workflow still contains an obsolete Windows fail-closed assertion although the native Windows route is active; see issue #35.
 - GitHub-hosted Actions were blocked before runner start by an external account/billing condition at the 2026-08-11 audit point; hosted CI is therefore not recorded as passing or failing product validation.
-- Translated READMEs remain behind the canonical English release-boundary wording and require synchronization before the documentation gate is complete.
