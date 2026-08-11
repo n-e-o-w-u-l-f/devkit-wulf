@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "publisher": "The Rust Project Developers",
+  "product": "rustup-init",
+  "support": "experimental",
+  "source_base": "https://static.rust-lang.org/rustup/dist",
+  "checksum_suffix": ".sha256",
+  "install": {
+    "profile": "minimal",
+    "default_toolchain": "stable",
+    "modify_path": false,
+    "cargo_home_template": "{home}/.local/share/devkit-wulf/cargo",
+    "rustup_home_template": "{home}/.local/share/devkit-wulf/rustup",
+    "path_directory_template": "{home}/.local/share/devkit-wulf/cargo/bin",
+    "marker_template": "{home}/.local/share/devkit-wulf/cargo/.devkit-wulf-rustup.json"
+  },
+  "targets": {
+    "linux": {
+      "binary_name": "rustup-init",
+      "architectures": {
+        "amd64": {"triple": "x86_64-unknown-linux-gnu"},
+        "arm64": {"triple": "aarch64-unknown-linux-gnu"}
+      }
+    },
+    "macos": {
+      "binary_name": "rustup-init",
+      "architectures": {
+        "amd64": {"triple": "x86_64-apple-darwin"},
+        "arm64": {"triple": "aarch64-apple-darwin"}
+      }
+    }
+  },
+  "verification": {
+    "managed_binaries": ["rustup", "rustc", "cargo"],
+    "commands": ["rustup --version", "rustc --version", "cargo --version"]
+  },
+  "policy": {
+    "linux_libc": "glibc",
+    "no_remote_script_execution": true,
+    "no_path_mutation": true,
+    "no_privilege": true,
+    "safe_remove": false
+  }
+}
