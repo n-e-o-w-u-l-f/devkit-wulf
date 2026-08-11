@@ -19,12 +19,8 @@ if ($env:OS -ne 'Windows_NT') {
 $RootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 if ($Target -eq 'python@3.12') {
-    if ($Command -notin @('plan', 'install', 'verify')) {
-        throw '[devkit-wulf] python@3.12 supports only plan, install and verify.'
-    }
-    if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) {
-        throw '[devkit-wulf] python@3.12 does not accept -AcceptRemoteScript, -Supported or -Platform.'
-    }
+    if ($Command -notin @('plan', 'install', 'verify')) { throw '[devkit-wulf] python@3.12 supports only plan, install and verify.' }
+    if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) { throw '[devkit-wulf] python@3.12 does not accept -AcceptRemoteScript, -Supported or -Platform.' }
     $Adapter = Join-Path $RootDir 'installers\windows\environments\python-3.12.ps1'
     if (-not (Test-Path -LiteralPath $Adapter -PathType Leaf)) { throw "[devkit-wulf] Python 3.12 Windows adapter not found: $Adapter" }
     & $Adapter -Action $Command -Experimental:$Experimental
@@ -32,12 +28,8 @@ if ($Target -eq 'python@3.12') {
 }
 
 if ($Target -eq 'flutter@stable') {
-    if ($Command -notin @('plan', 'install', 'verify')) {
-        throw '[devkit-wulf] flutter@stable supports only plan, install and verify.'
-    }
-    if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) {
-        throw '[devkit-wulf] flutter@stable does not accept -AcceptRemoteScript, -Supported or -Platform.'
-    }
+    if ($Command -notin @('plan', 'install', 'verify')) { throw '[devkit-wulf] flutter@stable supports only plan, install and verify.' }
+    if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) { throw '[devkit-wulf] flutter@stable does not accept -AcceptRemoteScript, -Supported or -Platform.' }
     $Adapter = Join-Path $RootDir 'installers\windows\environments\flutter-stable.ps1'
     if (-not (Test-Path -LiteralPath $Adapter -PathType Leaf)) { throw "[devkit-wulf] Flutter stable Windows adapter not found: $Adapter" }
     & $Adapter -Action $Command -Experimental:$Experimental
@@ -45,7 +37,12 @@ if ($Target -eq 'flutter@stable') {
 }
 
 if ($Target -eq 'go@stable') {
-    throw '[devkit-wulf] go@stable is not enabled on Windows: the current verified Go artifact contract contains Linux and macOS targets only. A Windows-native Go artifact adapter requires a separate reviewed contract.'
+    if ($Command -notin @('plan', 'install', 'verify')) { throw '[devkit-wulf] go@stable supports only plan, install and verify.' }
+    if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) { throw '[devkit-wulf] go@stable does not accept -AcceptRemoteScript, -Supported or -Platform.' }
+    $Adapter = Join-Path $RootDir 'installers\windows\environments\go-stable.ps1'
+    if (-not (Test-Path -LiteralPath $Adapter -PathType Leaf)) { throw "[devkit-wulf] Go stable Windows adapter not found: $Adapter" }
+    & $Adapter -Action $Command -Experimental:$Experimental
+    return
 }
 
 if ($Target -eq 'rust@stable') {
@@ -53,9 +50,7 @@ if ($Target -eq 'rust@stable') {
 }
 
 $Core = Join-Path $RootDir 'bin\devkit-wulf.ps1'
-if (-not (Test-Path -LiteralPath $Core -PathType Leaf)) {
-    throw "[devkit-wulf] Windows orchestrator core not found: $Core"
-}
+if (-not (Test-Path -LiteralPath $Core -PathType Leaf)) { throw "[devkit-wulf] Windows orchestrator core not found: $Core" }
 
 $Forward = @{}
 if ($PSBoundParameters.ContainsKey('Command')) { $Forward.Command = $Command }
@@ -64,5 +59,4 @@ if ($Experimental) { $Forward.Experimental = $true }
 if ($AcceptRemoteScript) { $Forward.AcceptRemoteScript = $true }
 if ($Supported) { $Forward.Supported = $true }
 if ($PSBoundParameters.ContainsKey('Platform')) { $Forward.Platform = $Platform }
-
 & $Core @Forward
