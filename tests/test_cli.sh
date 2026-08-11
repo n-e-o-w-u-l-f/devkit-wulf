@@ -24,6 +24,18 @@ sh "$CLI" list --platform debian | grep -E '^opentofu[[:space:]]+experimental[[:
 sh "$CLI" list --platform rhel | grep -E '^opentofu[[:space:]]+experimental[[:space:]]+vendor-repository$'
 sh "$CLI" list --platform opensuse-leap | grep -E '^opentofu[[:space:]]+experimental[[:space:]]+vendor-repository$'
 
+# Docker vendor repositories are exact-platform contracts. Do not implicitly
+# extend Docker's upstream-tested distro claims to derivatives.
+sh "$CLI" list --platform debian | grep -E '^docker[[:space:]]+experimental[[:space:]]+vendor-repository$'
+sh "$CLI" list --platform ubuntu | grep -E '^docker[[:space:]]+experimental[[:space:]]+vendor-repository$'
+sh "$CLI" list --platform fedora | grep -E '^docker[[:space:]]+experimental[[:space:]]+vendor-repository$'
+sh "$CLI" list --platform rhel | grep -E '^docker[[:space:]]+experimental[[:space:]]+vendor-repository$'
+sh "$CLI" list --platform opensuse-leap | grep -E '^docker[[:space:]]+experimental[[:space:]]+package-manager$'
+sh "$CLI" list --platform opensuse-tumbleweed | grep -E '^docker[[:space:]]+experimental[[:space:]]+package-manager$'
+sh "$CLI" list --platform linuxmint | grep -E '^docker[[:space:]]+experimental[[:space:]]+manual$'
+sh "$CLI" list --platform rocky | grep -E '^docker[[:space:]]+experimental[[:space:]]+manual$'
+sh "$CLI" list --platform almalinux | grep -E '^docker[[:space:]]+experimental[[:space:]]+manual$'
+
 if sh "$CLI" plan definitely-not-an-environment >/dev/null 2>&1; then
   echo "unknown environment unexpectedly succeeded" >&2
   exit 1

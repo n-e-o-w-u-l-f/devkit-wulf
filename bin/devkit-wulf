@@ -62,7 +62,8 @@ normalize_linux_platform() {
     arch) printf arch ;;
     manjaro) printf manjaro ;;
     fedora) printf fedora ;;
-    rhel|centos) printf rhel ;;
+    rhel) printf rhel ;;
+    centos) printf centos ;;
     rocky) printf rocky ;;
     almalinux) printf almalinux ;;
     opensuse-leap|opensuse) printf opensuse-leap ;;
@@ -112,6 +113,10 @@ detect_package_manager() {
   printf none
 }
 
+detect_version() {
+  read_os_release_value VERSION_ID 2>/dev/null || sw_vers -productVersion 2>/dev/null || uname -v 2>/dev/null || printf unknown
+}
+
 platform_family() {
   platform=$1
   jq -r --arg p "$platform" '.platforms[$p].family // $p' "$PLATFORM_MANIFEST"
@@ -131,7 +136,7 @@ show_detection() {
   pm=$(detect_package_manager)
   kernel=$(uname -sr 2>/dev/null || printf unknown)
   shell=${SHELL:-unknown}
-  version=$(read_os_release_value VERSION_ID 2>/dev/null || sw_vers -productVersion 2>/dev/null || uname -v 2>/dev/null || printf unknown)
+  version=$(detect_version)
   if [ "$(id -u 2>/dev/null || printf 99999)" -eq 0 ]; then privilege=root; elif have sudo; then privilege=sudo-available; elif have doas; then privilege=doas-available; else privilege=unprivileged; fi
   if have df; then disk=$(df -Pk . 2>/dev/null | awk 'NR==2 {print $4 " KiB"}' || printf unknown); else disk=unknown; fi
   printf 'platform=%s\nfamily=%s\ndomain=%s\nversion=%s\narchitecture=%s\nkernel=%s\nshell=%s\npackage_manager=%s\nprivilege=%s\navailable_disk=%s\n' \
@@ -168,7 +173,7 @@ effective_package_lines() {
   env_id=$1 platform=$2 pm=$3
   native=$(native_package_json "$env_id" "$platform" || true)
   if [ -n "$native" ] && [ "$(printf '%s' "$native" | jq -r '.package_manager')" = "$pm" ]; then
-    printf '%s\n' "$(printf '%s' "$native" | jq -r '.package')"
+    native_package_lines "$env_id" "$platform"
     return 0
   fi
   package_lines "$env_id" "$pm"
@@ -177,7 +182,7 @@ effective_package_lines() {
 resolve_effective_strategy() {
   env_id=$1 platform=$2 family=$3 declared=$4
   if [ "$declared" = manual ]; then
-    if [ -n "$(repository_target_json "$env_id" "$family" || true)" ]; then
+    if [ -n "$(repository_target_json "$env_id" "$platform" "$family" || true)" ]; then
       printf vendor-repository
       return 0
     fi
@@ -210,14 +215,14 @@ plan_environment() {
   env_id=$1
   require_jq
   environment_exists "$env_id" || die "unknown environment: $env_id"
-  platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager)
+  platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager); version=$(detect_version)
   entry=$(resolve_entry "$env_id" "$platform" "$family")
   support=$(printf '%s' "$entry" | jq -r '.support')
   declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
   strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
   if ! arch_allowed "$entry" "$arch"; then support=unsupported; declared_strategy=unsupported; strategy=unsupported; fi
-  printf 'environment=%s\nplatform=%s\nfamily=%s\ndomain=%s\narchitecture=%s\nsupport=%s\ndeclared_strategy=%s\nstrategy=%s\npackage_manager=%s\n' \
-    "$env_id" "$platform" "$family" "$domain" "$arch" "$support" "$declared_strategy" "$strategy" "$pm"
+  printf 'environment=%s\nplatform=%s\nfamily=%s\ndomain=%s\nversion=%s\narchitecture=%s\nsupport=%s\ndeclared_strategy=%s\nstrategy=%s\npackage_manager=%s\n' \
+    "$env_id" "$platform" "$family" "$domain" "$version" "$arch" "$support" "$declared_strategy" "$strategy" "$pm"
   notes=$(printf '%s' "$entry" | jq -r '.notes // empty')
   [ -n "$notes" ] && printf 'notes=%s\n' "$notes"
   printf 'packages:\n'
@@ -235,7 +240,9 @@ plan_environment() {
     fi
   fi
   if [ "$strategy" = vendor-repository ]; then
-    plan_vendor_repository "$env_id" "$family" "$pm" || printf 'vendor_repository:\n  adapter: unavailable-for-platform\n'
+    plan_vendor_repository "$env_id" "$platform" "$family" "$pm" "$arch" "$version" || printf 'vendor_repository:\n  adapter: unavailable-for-platform\n'
+  elif [ "$strategy" = package-manager ] && [ -n "$(native_package_json "$env_id" "$platform" || true)" ]; then
+    plan_native_package "$env_id" "$platform" "$pm"
   fi
   printf 'verification:\n'; verify_lines "$env_id" | sed 's/^/  - /'
   printf 'sources:\n'; source_lines "$env_id" | sed 's/^/  - /'
@@ -297,7 +304,7 @@ install_remote_script() {
   url=$(printf '%s' "$script" | jq -r '.url')
   interpreter=$(printf '%s' "$script" | jq -r '.interpreter')
   integrity=$(printf '%s' "$script" | jq -r '.integrity // "transport-and-review"')
-  tmp=${TMPDIR:-/tmp}/devkit-wulf-script-$$
+  tmp=$(mktemp "${TMPDIR:-/tmp}/devkit-wulf-script.XXXXXX") || die "unable to create remote-script staging file"
   trap 'rm -f "$tmp"' EXIT HUP INT TERM
   download_https "$url" "$tmp"
   hash=$(sha256_file "$tmp")
@@ -347,7 +354,7 @@ install_environment() {
   env_id=$1 experimental=$2 accept_remote=$3
   require_jq
   environment_exists "$env_id" || die "unknown environment: $env_id"
-  platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager)
+  platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager); version=$(detect_version)
   entry=$(resolve_entry "$env_id" "$platform" "$family")
   support=$(printf '%s' "$entry" | jq -r '.support')
   declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
@@ -366,14 +373,19 @@ install_environment() {
   case "$strategy" in
     package-manager)
       [ "$pm" != none ] || die "no supported package manager detected"
-      packages=$(effective_package_lines "$env_id" "$platform" "$pm" || true)
-      [ -n "$packages" ] || die "no package mapping for $env_id using $pm; refusing to guess"
-      # Package identifiers in manifests intentionally contain no whitespace except option tokens.
-      # shellcheck disable=SC2086
-      install_packages "$pm" $packages
+      native=$(native_package_json "$env_id" "$platform" || true)
+      if [ -n "$native" ] && [ "$(printf '%s' "$native" | jq -r '.package_manager')" = "$pm" ]; then
+        install_native_package "$env_id" "$platform" "$pm"
+      else
+        packages=$(package_lines "$env_id" "$pm" || true)
+        [ -n "$packages" ] || die "no package mapping for $env_id using $pm; refusing to guess"
+        # Package identifiers in manifests intentionally contain no whitespace except option tokens.
+        # shellcheck disable=SC2086
+        install_packages "$pm" $packages
+      fi
       ;;
     vendor-repository)
-      install_vendor_repository "$env_id" "$family" "$pm"
+      install_vendor_repository "$env_id" "$platform" "$family" "$pm" "$arch" "$version"
       ;;
     official-script)
       install_remote_script "$env_id" "$domain" "$accept_remote"

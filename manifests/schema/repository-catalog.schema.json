@@ -5,56 +5,67 @@
   "type": "object",
   "required": ["schema_version", "research_date", "repositories", "native_packages"],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "research_date": {"type": "string", "format": "date"},
-    "repositories": {
-      "type": "object",
-      "additionalProperties": {"$ref": "#/$defs/repositoryDefinition"}
-    },
-    "native_packages": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": {"$ref": "#/$defs/nativePackage"}
-      }
-    }
+    "repositories": {"type": "object", "additionalProperties": {"$ref": "#/$defs/repositoryDefinition"}},
+    "native_packages": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/nativePackage"}}}
   },
   "additionalProperties": false,
   "$defs": {
+    "packageToken": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+    "architecture": {"type": "string", "enum": ["amd64", "arm64", "armv7", "ppc64le", "s390x", "riscv64"]},
     "key": {
       "type": "object",
       "required": ["url", "transform"],
       "properties": {
         "url": {"type": "string", "pattern": "^https://"},
         "destination": {"type": "string", "pattern": "^/"},
-        "transform": {"type": "string", "enum": ["copy", "gpg-dearmor", "repository-key"]}
+        "transform": {"type": "string", "enum": ["copy", "gpg-dearmor", "repository-key"]},
+        "fingerprint": {"type": "string", "pattern": "^[A-Fa-f0-9 ]{40,59}$"}
+      },
+      "additionalProperties": false
+    },
+    "service": {
+      "type": "object",
+      "required": ["name", "action"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9@_.+-]+$"},
+        "action": {"type": "string", "enum": ["start", "enable-now"]}
       },
       "additionalProperties": false
     },
     "target": {
       "type": "object",
-      "required": ["documentation", "package_manager", "package", "prerequisites", "keys", "repository_file", "repository_content", "package_signature_required", "repository_signature_required", "tls_verification_required"],
+      "required": ["documentation", "package_manager", "prerequisites", "keys", "repository_file", "package_signature_required", "repository_signature_required", "tls_verification_required"],
       "properties": {
         "documentation": {"type": "string", "pattern": "^https://"},
         "package_manager": {"type": "string", "enum": ["apt", "dnf", "zypper"]},
-        "package": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
-        "prerequisites": {
-          "type": "array",
-          "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
-          "uniqueItems": true
-        },
+        "package": {"$ref": "#/$defs/packageToken"},
+        "packages": {"type": "array", "items": {"$ref": "#/$defs/packageToken"}, "minItems": 1, "uniqueItems": true},
+        "prerequisites": {"type": "array", "items": {"$ref": "#/$defs/packageToken"}, "uniqueItems": true},
+        "conflicting_packages": {"type": "array", "items": {"$ref": "#/$defs/packageToken"}, "uniqueItems": true},
+        "architectures": {"type": "array", "items": {"$ref": "#/$defs/architecture"}, "minItems": 1, "uniqueItems": true},
+        "supported_versions": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}, "minItems": 1, "uniqueItems": true},
         "key_directory": {"type": "string", "pattern": "^/"},
-        "keys": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/key"},
-          "minItems": 1
-        },
+        "keys": {"type": "array", "items": {"$ref": "#/$defs/key"}, "minItems": 1},
         "repository_file": {"type": "string", "pattern": "^/"},
         "repository_content": {"type": "string", "minLength": 1},
+        "repository_content_template": {"type": "string", "minLength": 1},
+        "repository_url": {"type": "string", "pattern": "^https://"},
+        "repository_required_substrings": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "localize_key_urls": {"type": "boolean"},
+        "suite_resolver": {"type": "string", "enum": ["debian-codename", "ubuntu-codename"]},
+        "architecture_resolver": {"type": "string", "enum": ["dpkg"]},
+        "refresh_repositories": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}, "uniqueItems": true},
+        "services": {"type": "array", "items": {"$ref": "#/$defs/service"}, "uniqueItems": true},
         "package_signature_required": {"type": "boolean"},
         "repository_signature_required": {"type": "boolean"},
         "tls_verification_required": {"const": true}
       },
+      "allOf": [
+        {"oneOf": [{"required": ["package"], "not": {"required": ["packages"]}}, {"required": ["packages"], "not": {"required": ["package"]}}]},
+        {"oneOf": [{"required": ["repository_content"]}, {"required": ["repository_content_template"]}, {"required": ["repository_url"]}]}
+      ],
       "additionalProperties": false
     },
     "repositoryDefinition": {
@@ -62,22 +73,21 @@
       "required": ["publisher", "targets"],
       "properties": {
         "publisher": {"type": "string", "minLength": 1},
-        "targets": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {"$ref": "#/$defs/target"}
-        }
+        "targets": {"type": "object", "minProperties": 1, "propertyNames": {"pattern": "^(platform|family):[a-z0-9-]+$"}, "additionalProperties": {"$ref": "#/$defs/target"}}
       },
       "additionalProperties": false
     },
     "nativePackage": {
       "type": "object",
-      "required": ["documentation", "package_manager", "package"],
+      "required": ["documentation", "package_manager"],
       "properties": {
         "documentation": {"type": "string", "pattern": "^https://"},
         "package_manager": {"type": "string", "enum": ["apt", "dnf", "zypper", "pacman", "apk", "brew"]},
-        "package": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}
+        "package": {"$ref": "#/$defs/packageToken"},
+        "packages": {"type": "array", "items": {"$ref": "#/$defs/packageToken"}, "minItems": 1, "uniqueItems": true},
+        "services": {"type": "array", "items": {"$ref": "#/$defs/service"}, "uniqueItems": true}
       },
+      "oneOf": [{"required": ["package"], "not": {"required": ["packages"]}}, {"required": ["packages"], "not": {"required": ["package"]}}],
       "additionalProperties": false
     }
   }
