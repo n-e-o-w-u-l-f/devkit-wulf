@@ -4,222 +4,122 @@
 
 Bezpieczny, sterowany manifestami, wieloplatformowy bootstrapper i orkiestrator środowisk programistycznych dla Windows, WSL2, Linux, macOS, BSD oraz jawnie zbadanych rozszerzonych systemów Unix.
 
-> **Status:** bootstrap pre-1.0. Kombinacje platforma/środowisko pozostają `experimental`, dopóki nie przejdą wymaganych bramek CI lub walidacji na systemie docelowym. Repozytorium celowo nie deklaruje niezweryfikowanych kombinacji jako wspieranych.
+> **Status:** pre-1.0. Kombinacje platforma/środowisko pozostają `experimental`, dopóki nie przejdą wymaganych bramek CI i walidacji na systemach docelowych. Samo istnienie adaptera nie oznacza promowanego wsparcia.
 
-## Projekt
+Audytowany stan z **2026-08-11** opisuje [`docs/REPOSITORY-STATUS.md`](docs/REPOSITORY-STATUS.md).
 
-`devkit-wulf` rozdziela odpowiedzialności za:
+## Architektura
 
-- wykrywanie hosta i architektury;
-- wybór menedżera pakietów;
-- metadane środowiska i politykę wsparcia;
-- strategię instalacji;
-- planowanie bez modyfikacji;
-- modyfikacje i obsługę uprawnień;
-- weryfikację;
-- śledzenie stanu i świadomość rollbacku;
-- bramki CI i bezpieczeństwa.
+`devkit-wulf` rozdziela wykrywanie hosta/architektury, wybór źródeł i menedżera pakietów, kontrakty środowisk, planowanie bez modyfikacji, integralność, weryfikację, stan/własność oraz bramki CI/release.
 
-Status wsparcia i strategia wykonania są modelowane niezależnie. Kombinacja może więc mieć `support: experimental`, korzystając jednocześnie ze `strategy: package-manager`, `winget`, `official-script`, `official-archive`, `source`, `vm`, `container`, `wsl2` lub `xcode`.
+Wspólne kontrakty wersjonowane znajdują się w `environments/`. Punkty wejścia **release-facing** znajdują się w `installers/` i są natywne dla danego systemu. `bin/` zawiera wewnętrzne, ogólne rdzenie orkiestracji w trakcie migracji i nie jest uniwersalnym formatem wykonywalnym dla wszystkich systemów.
 
 ## Szybki start
 
-### Linux / macOS / BSD / Unix
+### Natywny Linux
 
 ```sh
-./bootstrap/linux.sh        # Linux / WSL2
-./bootstrap/macos.sh        # macOS
-./bootstrap/bsd.sh          # FreeBSD/OpenBSD/NetBSD/DragonFly
-./bootstrap/solaris.sh      # Solaris/illumos
-./bootstrap/aix.sh          # AIX
-
-./bin/devkit-wulf detect
-./bin/devkit-wulf list
-./bin/devkit-wulf plan python
-./bin/devkit-wulf install python --experimental
-./bin/devkit-wulf verify python
-./bin/devkit-wulf doctor
+./bootstrap/linux.sh
+./installers/linux/devkit-wulf.sh detect
+./installers/linux/devkit-wulf.sh list
+./installers/linux/devkit-wulf.sh plan python
+./installers/linux/devkit-wulf.sh install python --experimental
+./installers/linux/devkit-wulf.sh verify python
 ```
 
-Skrypty bootstrap instalują wyłącznie niewielkie zależności parsera/narzędzi wymagane przez orkiestrator. Nie instalują profili programistycznych.
+### macOS
+
+```sh
+./bootstrap/macos.sh
+./installers/macos/devkit-wulf.sh detect
+./installers/macos/devkit-wulf.sh plan python
+```
 
 ### Windows PowerShell
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\bootstrap\windows.ps1
-.\bin\devkit-wulf.ps1 detect
-.\bin\devkit-wulf.ps1 list
-.\bin\devkit-wulf.ps1 plan python
-.\bin\devkit-wulf.ps1 install python -Experimental
-.\bin\devkit-wulf.ps1 verify python
-.\bin\devkit-wulf.ps1 doctor
+.\installers\windows\devkit-wulf.ps1 detect
+.\installers\windows\devkit-wulf.ps1 list
+.\installers\windows\devkit-wulf.ps1 plan python
+.\installers\windows\devkit-wulf.ps1 install python -Experimental
+.\installers\windows\devkit-wulf.ps1 verify python
 ```
-
-Natywny orkiestrator obsługuje Windows PowerShell 5.1 i PowerShell 7. Instalacje oparte na WinGet są sprawdzane przed zmianą systemu, aby dokładne identyfikatory już zainstalowanych pakietów nie były celowo instalowane ponownie.
 
 ### WSL2
 
-Uruchom CLI Linux wewnątrz wybranej dystrybucji WSL. Dystrybucje WSL są wykrywane niezależnie od hosta Windows. `devkit-wulf` nigdy nie tworzy po cichu dystrybucji WSL ani automatycznie nie konwertuje WSL1 do WSL2.
-
-Aby najpierw sprawdzić plan zmiany WSL po stronie Windows:
-
-```powershell
-.\bootstrap\windows.ps1 -PlanWSL2 -Distribution Debian
+```sh
+./bootstrap/linux.sh
+./installers/wsl/devkit-wulf.sh detect
+./installers/wsl/devkit-wulf.sh plan python
 ```
 
-Zmiana funkcji lub dystrybucji WSL wymaga dodatkowo podwyższonych uprawnień i parametru `-AllowSystemChange`.
+`devkit-wulf` nie tworzy po cichu dystrybucji WSL i nie konwertuje automatycznie WSL1 do WSL2. Zmiany systemowe po stronie Windows wymagają jawnego planu i `-AllowSystemChange`.
 
-Projekty używane przez narzędzia Linux powinny zwykle znajdować się w systemie plików Linux wewnątrz WSL2. Natywne projekty Windows powinny pozostać po stronie Windows; operacje I/O pomiędzy systemami plików nie są traktowane jako domyślny układ.
+## Wersjonowane selektory natywne
 
-## Polecenia
+Stan audytu **2026-08-11**:
 
-```text
-devkit-wulf detect
-devkit-wulf list
-devkit-wulf list --supported
-devkit-wulf list --platform <platform>
-devkit-wulf plan <environment>
-devkit-wulf install <environment> [--experimental]
-devkit-wulf verify <environment>
-devkit-wulf remove <environment>
-devkit-wulf install profile:<name> [--experimental]
-devkit-wulf doctor
-```
+| Selektor | Linux | WSL2 | macOS | Windows |
+| --- | --- | --- | --- | --- |
+| `python@3.12` | eksperymentalna trasa | eksperymentalna trasa | eksperymentalna trasa | eksperymentalna trasa |
+| `go@stable` | eksperymentalna trasa | eksperymentalna trasa | eksperymentalna trasa | eksperymentalna trasa |
+| `rust@stable` | eksperymentalna trasa | eksperymentalna trasa | eksperymentalna trasa | adapter istnieje, centralna trasa zablokowana |
+| `flutter@stable` | eksperymentalna trasa | unsupported | eksperymentalna trasa | eksperymentalna trasa (amd64) |
+| `kubectl@stable` | brak centralnej trasy | brak centralnej trasy | bezpośredni adapter natywny | bezpośredni adapter natywny |
 
-W natywnym Windows używane są odpowiadające parametry PowerShell `-Experimental` i `-AcceptRemoteScript`.
+Tabela opisuje implementację/routing, **nie promowane wsparcie**. Workflow Go dla Windows nadal zawiera przestarzałe oczekiwanie fail-closed (issue #35). Windows Rust ma natywny adapter, lecz centralny selektor pozostaje celowo zablokowany.
 
-`plan` nie modyfikuje systemu. `install` odrzuca kombinacje `unsupported` i wymaga jawnej zgody na tryb eksperymentalny dla kombinacji, które nie przeszły jeszcze wszystkich bramek wsparcia. Strategie bez zweryfikowanego dedykowanego adaptera kończą się bezpiecznym błędem zamiast zgadywać instalator.
+## Środowiska i profile
 
-## Początkowe środowiska
+Główne środowiska:
 
-### Podstawa i języki
+`base`, `cpp`, `python`, `node`, `deno`, `bun`, `java`, `dotnet`, `go`, `rust`, `php`, `ruby`, `vscode`, `visualstudio`, `jetbrains`, `eclipse`, `android`, `flutter`, `xcode`, `docker`, `podman`, `kubectl`, `opentofu`.
 
-- `base`
-- `cpp`
-- `python`
-- `node`
-- `deno`
-- `bun`
-- `java`
-- `dotnet`
-- `go`
-- `rust`
-- `php`
-- `ruby`
+Profile:
 
-### Edytory i IDE
+`minimal`, `web`, `backend`, `systems`, `mobile`, `devops`, `full`, `wsl-stable`, `wsl-rolling`.
 
-- `vscode`
-- `visualstudio`
-- `jetbrains`
-- `eclipse`
-
-### Mobile / SDK platform
-
-- `android`
-- `flutter`
-- `apple`
-
-### Kontenery / infrastruktura
-
-- `docker`
-- `podman`
-- `kubectl`
-- `opentofu`
-
-## Profile
-
-- `minimal`
-- `web`
-- `backend`
-- `systems`
-- `mobile`
-- `devops`
-- `full`
-- `wsl-stable`
-- `wsl-rolling`
-
-Profil `full` nigdy samodzielnie nie włącza środowisk `experimental`. Wpisy `unsupported` i `target-only` nigdy nie są zamieniane na instalacje hosta.
-
-## Model platform
-
-Główne cele implementacji:
-
-- Windows 11 i obsługiwane wersje klienckie Windows 10, x64/ARM64 tam, gdzie dane środowisko to wspiera;
-- WSL2 z Debian, Ubuntu, Arch Linux, openSUSE i Kali;
-- Debian/Ubuntu/Mint/Kali/Raspberry Pi OS;
-- Arch/Manjaro;
-- Fedora/RHEL/Rocky/Alma;
-- openSUSE;
-- Alpine;
-- macOS Intel i Apple Silicon.
-
-Cele badawcze/walidacyjne:
-
-- FreeBSD, OpenBSD, NetBSD, DragonFly BSD;
-- illumos, Oracle Solaris, AIX.
-
-Rozszerzone wpisy Unix pozostają `experimental` lub `target-only`, dopóki nie zostaną zwalidowane na autorytatywnych systemach docelowych. Możliwości cross-kompilacji są modelowane oddzielnie od wsparcia hosta.
+**Znany drift kontraktu:** `profiles/profiles.json` oraz `tests/validate_manifests.py` nadal używają starego identyfikatora `apple`, podczas gdy katalog kanoniczny definiuje `xcode`. Zobacz issue #34.
 
 ## Model bezpieczeństwa
 
-Implementacja stosuje bramki z [`AGENTS.md`](AGENTS.md). W szczególności:
+Obowiązujące reguły znajdują się w [`AGENTS.md`](AGENTS.md), w tym:
 
 - brak cichego fallbacku do niewspieranych kombinacji;
-- brak automatycznego wykonywania `curl | sh` / `irm | iex`;
-- pochodzenie źródeł jest zapisywane w manifestach;
-- preferowane są menedżery pakietów i oficjalne kanały dostawców;
-- skrypty zdalne muszą zostać pobrane i sprawdzone przed wykonaniem;
-- niezgodność sum kontrolnych/podpisów powoduje twardy błąd, gdy upstream udostępnia dane integralności;
-- podnoszenie uprawnień ogranicza się do operacji, które faktycznie tego wymagają;
-- `plan` nigdy nie modyfikuje hosta;
-- destrukcyjna dezinstalacja jest odrzucana, jeśli nie można bezpiecznie ustalić własności zasobów;
-- wykluczenia dla Windows Server są oceniane niezależnie od wsparcia klienta Windows, gdy wymaga tego upstream.
+- brak automatycznego `curl | sh` / `irm | iex`;
+- kontrole HTTPS/źródła/integralności dla zweryfikowanych ścieżek artefaktów;
+- staging przed modyfikacją oraz ochrona przed traversal/symlink/reparse-point;
+- odmowa przejęcia obcego lub niezarządzanego katalogu docelowego;
+- brak niejawnej trwałej modyfikacji PATH w zweryfikowanych adapterach user-local;
+- ograniczone uprawnienia;
+- fail-closed dla usuwania bez pewnego dowodu własności;
+- osobna promocja wsparcia dopiero po przejściu wszystkich bramek.
 
-## Struktura repozytorium
+Bezpieczne usuwanie pozostaje otwarte w issue #3.
 
-```text
-AGENTS.md               kontrakt zarządzania i obowiązkowe bramki
-bin/                    orkiestratory POSIX i PowerShell
-bootstrap/              minimalne skrypty bootstrap hosta
-manifests/              katalog platform/środowisk i schemat
-profiles/               komponowalne zestawy środowisk
-research/               datowane badania źródeł i wsparcia upstream
-scripts/                narzędzia walidacji/bezpieczeństwa
-tests/                  testy manifestów i CLI
-.github/workflows/       bramki CI
-```
+## Stan CI i release
 
-## Aktualna granica automatyzacji
+Repozytorium zawiera rozbudowane offline fixtures Shell/PowerShell oraz semantyczne walidatory Python. Ostatni audytowany GitHub Actions run został jednak zablokowany **przed uruchomieniem runnera** przez zewnętrzny stan konta/billingu. Nie jest to ani zielone CI, ani wynik testu produktu.
 
-Strategie menedżerów pakietów oraz wybrane strategie `official-script` mają wykonywalne adaptery. Strategie `official-archive`, specyficzne dla produktów `manual`, kompilacje ze źródeł, VM i kontenery są przedstawiane w planach, ale celowo kończą się bezpiecznym błędem, dopóki dla danego produktu nie zostaną wdrożone kontrakty pobierania, integralności, własności, PATH i dezinstalacji.
+Obecnie nie ma GitHub Releases ani tagów Git. Checksumy/SBOM release są otwarte w issue #6, a walidacja rozszerzonych systemów Unix w issue #5.
 
-Granica ta zapobiega przekształceniu szerokiej macierzy platform w niezweryfikowaną kolekcję poleceń pobierania.
+## Dokumentacja
 
-## Badania upstream
-
-Początkowa macierz wsparcia została odświeżona **2026-08-10** na podstawie pierwotnej dokumentacji upstream. Zobacz [`research/upstream-sources.md`](research/upstream-sources.md). Wersje runtime i informacje EOL celowo nie są uznawane za trwałe; manifesty zawierają daty badań i muszą być ponownie walidowane przed zmianami zależnymi od wersji.
-
-Zalecana strategia host/domena dla platform i środowisk znajduje się w [`docs/platform-strategy.md`](docs/platform-strategy.md). Etapowy stan implementacji i promocji jest śledzony w [`ROADMAP.md`](ROADMAP.md).
-
-## Dokumentacja i społeczność
-
-- [Zasady współtworzenia](CONTRIBUTING.md)
-- [Wsparcie i zgłaszanie problemów](SUPPORT.md)
-- [Polityka bezpieczeństwa](SECURITY.md)
+- [Audytowany stan repozytorium](docs/REPOSITORY-STATUS.md)
+- [Architektura instalatorów](docs/installer-architecture.md)
+- [Natywne punkty wejścia](installers/README.md)
+- [Roadmap](ROADMAP.md)
+- [Changelog](CHANGELOG.md)
+- [Współtworzenie](CONTRIBUTING.md)
+- [Wsparcie](SUPPORT.md)
+- [Bezpieczeństwo](SECURITY.md)
 - [Polityka tłumaczeń](docs/TRANSLATIONS.md)
-- [Plan rozwoju](ROADMAP.md)
 
 ## Wesprzyj projekt
 
-Jeżeli `devkit-wulf` jest dla Ciebie przydatny, możesz wesprzeć dalszy rozwój przez PayPal:
-
-<a href="https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U" target="_blank"><img src="https://www.paypalobjects.com/en_US/DK/i/btn/btn_donateCC_LG.gif" alt="Wesprzyj przez PayPal" title="PayPal - The safer, easier way to pay online!" /></a>
-
 [Wesprzyj przez PayPal](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
-
-Zeskanuj lub kliknij kod QR, aby otworzyć tę samą stronę darowizny PayPal:
 
 [![Kod QR darowizny PayPal](docs/assets/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=U823TB85A693U)
 

@@ -2,17 +2,24 @@
 
 Research date: **2026-08-11**
 
+Status: **experimental**
+
 ## Integration boundary
 
-The existing `php` environment remains `experimental`.
+The Windows `php` environment is now orchestrated as a coordinated PHP-runtime + Composer environment. The runtime helper documented here remains a distinct integrity component, but it is no longer a standalone future-only path.
 
-This helper implements only the **official Windows PHP runtime archive** component. It is intentionally not wired into the central `devkit-wulf install php` success path yet, because the environment contract also verifies Composer.
+Central Windows orchestration plans and installs the PHP runtime first, validates devkit ownership, installs Composer through its separately verified component, and then performs the environment-level verification:
 
-A PHP runtime archive install must not be reported as a complete PHP environment while `composer --version` is still unresolved.
+```text
+php --version
+composer --version
+```
+
+A PHP runtime archive by itself must still never be reported as a complete PHP environment.
 
 ## Official release metadata
 
-The helper uses the official Windows PHP release index:
+The runtime helper uses the official Windows PHP release index:
 
 ```text
 https://windows.php.net/downloads/releases/releases.json
@@ -24,22 +31,11 @@ and constructs archive URLs only below:
 https://windows.php.net/downloads/releases
 ```
 
-The release index contains maintained numeric branches, build entries, ZIP paths and SHA-256 metadata.
+It selects the highest maintained numeric branch, validates the release version, selects the highest matching x64 non-thread-safe build (`nts-vsN-x64`), requires a safe ZIP filename plus a 64-hex SHA-256 value, and keeps the final archive URL on `windows.php.net`.
 
-The helper:
+## Architecture and runtime choice
 
-1. enumerates numeric `MAJOR.MINOR` branches;
-2. selects the highest branch;
-3. validates the release `version` against that branch;
-4. selects the highest matching x64 non-thread-safe build key (`nts-vsN-x64`);
-5. requires ZIP metadata with a safe filename and a 64-hex SHA-256;
-6. constructs the final archive URL on `windows.php.net` only.
-
-## Why NTS
-
-The devkit runtime path is CLI-oriented. The manifest therefore selects the non-thread-safe x64 Windows build rather than silently choosing a thread-safe Apache-module-oriented runtime.
-
-This choice is explicit in the machine-readable contract:
+The reviewed runtime path is CLI-oriented and therefore uses the Windows x64 NTS build:
 
 ```text
 thread_safety: nts
@@ -58,110 +54,64 @@ The runtime is staged and installed under:
 
 Before installation:
 
-- `%LOCALAPPDATA%\devkit-wulf` must already exist;
-- the parent must not be a reparse point;
-- `%LOCALAPPDATA%\devkit-wulf\php` must already be present in the current process `PATH`;
-- the helper does not edit persistent user or machine PATH;
-- no Administrator elevation is used.
+- `%LOCALAPPDATA%\devkit-wulf` must exist and must not be a reparse point;
+- the managed PHP directory must already be represented in the current-process PATH contract;
+- persistent user or machine PATH is not edited;
+- Administrator elevation is not used.
 
-The no-implicit-PATH rule is intentional. A caller can prepare the current process before installation, for example:
+## Integrity and archive safety
 
-```powershell
-New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\devkit-wulf" | Out-Null
-$env:PATH = "$env:LOCALAPPDATA\devkit-wulf\php;$env:PATH"
-```
+The archive SHA-256 is obtained from the same official release record that supplies the ZIP filename. The helper downloads release metadata and the archive over HTTPS, calculates SHA-256 with `Get-FileHash`, fails on mismatch, validates ZIP paths before extraction, stages extraction under an approved user-local parent, and records the installed `php.exe` hash.
 
-## Integrity
-
-The archive SHA-256 comes from the same official `releases.json` record that supplies the ZIP filename.
-
-The helper:
-
-1. downloads the release index over HTTPS;
-2. resolves the x64 NTS ZIP and SHA-256;
-3. downloads the ZIP from `windows.php.net`;
-4. computes SHA-256 with `Get-FileHash`;
-5. hard-fails on mismatch;
-6. validates ZIP paths before extraction;
-7. extracts into a user-local staging directory;
-8. calculates the extracted `php.exe` SHA-256 for ownership tracking.
+ZIP entries are rejected when they are absolute, drive/URI-qualified, contain `.`/`..` traversal, use unsafe separators, or resolve outside the staging root. `php.exe` must be a normal non-reparse-point file.
 
 No TLS or checksum bypass is implemented.
 
-## ZIP safety
+## Conflict, ownership, and idempotency
 
-Before extraction, every ZIP entry is checked.
-
-Entries are rejected when they contain:
-
-- absolute paths;
-- backslash path separators in archive entry names;
-- drive/URI colon syntax;
-- `.` or `..` traversal components;
-- a resolved destination outside the staging root.
-
-`php.exe` must be a normal non-reparse-point file after extraction.
-
-## Conflict and idempotency policy
-
-The helper does not adopt an arbitrary existing PHP directory.
-
-On successful first install it writes:
+Successful installation creates:
 
 ```text
 %LOCALAPPDATA%\devkit-wulf\php\.devkit-wulf-artifact.json
 ```
 
-The marker records:
+The marker binds the managed directory to the component, PHP version/build, exact release sources, archive SHA-256, and installed `php.exe` SHA-256.
 
-- component ID;
-- PHP version;
-- selected build key;
-- exact archive URL;
-- release-index URL;
-- archive SHA-256;
-- installed `php.exe` SHA-256.
+An arbitrary existing PHP directory is not adopted. A second installation is idempotent only when the marker and executable hash prove that the currently resolved artifact is exactly the managed artifact. A changed, newer, foreign, or unowned destination fails closed instead of being overwritten.
 
-A second installation is idempotent only when the marker and the current `php.exe` prove that the directory is exactly the currently resolved devkit-managed artifact.
-
-Any different or unowned existing directory fails under GATE-08. A newly published PHP release is therefore not silently installed over an older managed runtime; upgrade/migration semantics must be explicit first.
+`safe_remove` remains false until the ownership-aware removal gate is implemented.
 
 ## State tracking
 
-The helper uses:
+The runtime component appends records to:
 
 ```text
 %DEVKIT_WULF_STATE_DIR%\php-windows.jsonl
 ```
 
-when `DEVKIT_WULF_STATE_DIR` is set, otherwise:
+or the default devkit-wulf local state directory. State-directory and state-file reparse points are rejected.
+
+Records capture mutation intent, installed/observed artifact state, publisher, version/build, source metadata, hashes, destination, and `path_mutation: false`.
+
+## Composer integration
+
+Composer is a separate verified component documented in `docs/environments/composer-windows.md`. The combined Windows PHP orchestrator is implemented in:
 
 ```text
-%LOCALAPPDATA%\devkit-wulf\state\php-windows.jsonl
+lib/php-windows-environment.ps1
 ```
 
-State-directory and state-file reparse points are rejected.
+Its install order is intentionally:
 
-Records include mutation intent, installed artifact observations, publisher, branch, version, build, archive source, release index, archive SHA-256, `php.exe` SHA-256, destination and `path_mutation: false`.
+1. PHP runtime;
+2. Composer after PHP ownership verification;
+3. environment-level verification of both commands.
 
-## Composer remains a separate gate
-
-The repository's existing PHP environment verifies both:
-
-```text
-php --version
-composer --version
-```
-
-This runtime helper satisfies only the first component. Composer must be installed through a separately researched and integrity-verified path before the central PHP environment installer can declare success.
-
-The helper therefore remains standalone and does not weaken GATE-12.
+A Composer component failure or final environment-verification failure is recorded as an incomplete/failed environment; it is not reported as success merely because PHP was installed.
 
 ## Windows PowerShell compatibility
 
-The implementation targets Windows PowerShell 5.1 and PowerShell 7.
-
-For Windows PowerShell 5.1, HTTPS downloads use process-local TLS 1.2 selection and `Invoke-WebRequest -UseBasicParsing`. No persistent execution-policy or TLS setting is changed.
+The implementation targets Windows PowerShell 5.1 and PowerShell 7. Windows PowerShell 5.1 downloads use process-local TLS 1.2 selection and `Invoke-WebRequest -UseBasicParsing`. No persistent execution-policy or TLS setting is changed.
 
 ## Upstream references
 

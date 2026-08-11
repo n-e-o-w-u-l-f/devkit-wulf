@@ -4,13 +4,19 @@ Research/update date: **2026-08-11**
 
 Status: **experimental**
 
-## Scope
+## Scope and routing
 
-This contract realizes the existing Windows `official-archive` Flutter environment as a native PowerShell-managed artifact for **Windows amd64 only**.
+This contract realizes the Windows `flutter@stable` selector as a native PowerShell-managed verified artifact for **Windows amd64 only**.
 
-It does not add Windows ARM64 support and does not promote the Flutter environment beyond `experimental`.
+The central release-facing Windows entrypoint now routes `flutter@stable` to:
 
-Central `devkit-wulf.ps1` routing remains a separate integration step after this helper contract is merged.
+```text
+installers/windows/environments/flutter-stable.ps1
+```
+
+which uses the reviewed Windows artifact contract/helper. This is an active experimental route, not a support promotion.
+
+The generic unversioned `flutter` environment remains a separate catalog concern. Windows ARM64 and WSL are not added by this contract.
 
 ## Official release metadata
 
@@ -58,23 +64,13 @@ Ownership marker:
 %USERPROFILE%\develop\flutter\.devkit-wulf-artifact.json
 ```
 
-The parent `%USERPROFILE%\develop` must already exist, be a real directory and not be a reparse point. The managed Flutter `bin` directory must already be present in the current process PATH.
+The approved install parent must already exist and must not be a reparse point. The managed Flutter `bin` directory must already be represented in the current-process PATH contract.
 
 The helper performs **no persistent PATH mutation** and requests **no Administrator elevation**.
 
-## ZIP safety
+## ZIP safety and staging
 
-Before extraction, every ZIP entry is inspected.
-
-The helper rejects entries that:
-
-- are absolute;
-- use drive-qualified syntax;
-- contain backslashes;
-- contain `..` path traversal;
-- live outside the exact `flutter/` root;
-- represent Unix symlinks;
-- carry the Windows reparse-point attribute.
+Every ZIP entry is inspected before extraction. The helper rejects absolute/drive-qualified paths, backslashes, traversal, entries outside the exact `flutter/` root, Unix symlinks, and Windows reparse-point entries.
 
 The archive must contain both critical managed launchers:
 
@@ -83,56 +79,25 @@ flutter/bin/flutter.bat
 flutter/bin/dart.bat
 ```
 
-Only after SHA-256 and ZIP-path checks pass is the archive extracted.
+Staging is created inside the approved user-local parent. Recursive cleanup is permitted only after proving the staging path belongs to that parent, matches the expected randomized staging-name contract, and is not a reparse point.
 
-## Staging and placement
-
-Staging is created inside the approved `%USERPROFILE%\develop` parent so final placement stays on the same filesystem.
-
-Staging cleanup is recursively allowed only after proving all of the following:
-
-- the path is a child of the exact approved install parent;
-- the leaf matches `.devkit-wulf-flutter-<32 hex>`;
-- the staging directory is not a reparse point.
-
-The verified `flutter` directory is moved into its final location only after critical-file hashes and the ownership marker have been prepared in staging.
+The verified `flutter` tree moves into its final location only after integrity and ownership metadata are prepared.
 
 ## Ownership and idempotency
 
-The marker records:
+The marker records environment/publisher/platform/architecture, resolved Flutter version, official archive source, archive SHA-256, and hashes for `flutter.bat` and `dart.bat`.
 
-- environment `flutter`;
-- publisher `Flutter Authors / Google`;
-- platform `windows`;
-- architecture `amd64`;
-- resolved Flutter version;
-- official archive source URL;
-- archive SHA-256;
-- SHA-256 values for `bin/flutter.bat` and `bin/dart.bat`.
+A foreign existing Flutter directory is refused before release-index network access. A repeated installation is idempotent only when the existing marker and critical files verify and the resolved stable artifact still matches that managed installation.
 
-A foreign existing Flutter directory with no valid devkit marker is refused **before release-index network access**.
+A newer stable release does not silently overwrite an older managed SDK. Explicit future upgrade/migration semantics are required.
 
-A repeated installation is idempotent only when:
-
-- the current managed marker verifies;
-- critical launcher hashes still match;
-- the currently resolved stable release matches the marker version/source/archive hash.
-
-A newer stable release does not silently overwrite an existing managed SDK. Explicit future upgrade/migration semantics are required.
+`safe_remove` remains false until ownership-aware removal is implemented.
 
 ## Managed verification
 
-`Test-DevkitFlutterWindowsManagedVerification` is offline with respect to release discovery.
+Artifact-level verification checks the exact managed destination, reparse-point policy, marker identity, source/version/hash syntax, and current critical-file hashes.
 
-It validates:
-
-- exact managed destination;
-- non-reparse destination and marker;
-- marker publisher/environment/platform/architecture;
-- recorded version/source/archive hash syntax;
-- current SHA-256 values of `flutter.bat` and `dart.bat` against the marker.
-
-It intentionally does not invoke Flutter during artifact-level verification because Flutter command execution may initialize cache state. CLI-level environment smoke verification remains a separate integration concern.
+It intentionally avoids invoking Flutter as part of artifact integrity verification because Flutter command execution may initialize cache state. Environment smoke verification remains a distinct layer.
 
 ## State
 
@@ -142,43 +107,29 @@ Detailed records are appended to:
 <devkit-wulf-state>\flutter-windows.jsonl
 ```
 
-State directory/file reparse points and non-file state paths are refused.
-
-Actions include:
-
-```text
-mutation-intent
-installed-verified-artifact
-observed-exact-artifact
-```
+State directory/file reparse points and non-file state paths are refused. Recorded actions include mutation intent, verified installation, and exact managed observation.
 
 ## Offline fixture coverage
 
-The Windows fixture verifies:
+The Windows fixture covers:
 
-- exact amd64 gate and ARM64 refusal;
+- amd64 acceptance and ARM64 refusal;
 - stable/x64 release selection;
-- pinned base URL;
-- official archive URL construction;
+- pinned official source/base URL;
 - SHA-256 verification;
-- non-mutating plan;
-- foreign destination refusal before network;
-- PATH refusal before network;
-- exact installation marker/hashes;
+- non-mutating plan behavior;
+- foreign destination and PATH refusal before network use;
+- exact ownership marker and critical hashes;
 - managed verification;
-- idempotent second installation without archive redownload;
+- offline/idempotent second installation;
 - critical-file tamper detection;
 - checksum mismatch refusal;
-- traversal ZIP refusal;
-- wrong-root ZIP refusal;
-- state-directory reparse-point refusal;
-- install-parent reparse-point refusal.
+- traversal/wrong-root ZIP refusal;
+- state/install-parent reparse-point refusal.
 
 ## Support policy
 
-This is an implementation of the already declared Windows amd64 experimental archive path, not a support expansion.
-
-Windows ARM64 remains unsupported by this contract. `safe_remove` remains false until removal ownership is implemented.
+`flutter@stable` on native Windows amd64 remains **experimental** and requires explicit `-Experimental` opt-in for installation. Adapter presence, offline fixtures, or successful local verification do not promote support without the complete governance gate set.
 
 ## Upstream references
 
