@@ -2,78 +2,65 @@
 
 Research date: **2026-08-11**
 
-## Purpose
+Status: **experimental**
 
-This component closes the Composer half of the existing Windows PHP environment contract without executing Composer's remote installer script.
+## Purpose and current integration
 
-The existing `php` environment verifies:
+This component supplies the Composer half of the Windows `php` environment without executing Composer's remote installer script.
+
+The PHP runtime helper supplies a devkit-managed `php.exe`. This component supplies a verified `composer.phar` plus a deterministic `composer.bat` wrapper bound to that managed runtime. The combined orchestration is active through the Windows PHP environment layer and verifies:
 
 ```text
 php --version
 composer --version
 ```
 
-The PHP Windows runtime helper supplies the first executable. This Composer helper supplies a verified `composer.phar` plus a local `composer.bat` wrapper bound to the already devkit-managed `php.exe`.
-
-Both remain experimental until central orchestration, hosted CI and target validation gates pass.
+The component remains independently integrity-gated and does not promote PHP support beyond `experimental`.
 
 ## Official sources
 
-The helper uses only:
+Only these stable Composer endpoints are used:
 
 ```text
 https://getcomposer.org/download/latest-stable/composer.phar
 https://getcomposer.org/download/latest-stable/composer.phar.sha256sum
 ```
 
-Both URLs must remain HTTPS on `getcomposer.org`.
-
-No Composer installer script is executed.
+Both must remain HTTPS on `getcomposer.org`. No Composer installer script is executed.
 
 ## Stable-release race gate
 
-`latest-stable` can legitimately change when Composer publishes a new release. To avoid combining a checksum from one stable release with a PHAR from another, the helper uses this sequence:
+Because `latest-stable` can rotate while a transaction is in progress, the helper:
 
-1. download the official SHA-256 metadata;
-2. parse and validate the first SHA-256 value;
-3. download `composer.phar`;
-4. download the official SHA-256 metadata again;
-5. require both published hashes to be identical;
-6. calculate the local PHAR SHA-256;
-7. require it to equal the stable published hash.
+1. downloads and validates the published SHA-256 value;
+2. downloads `composer.phar`;
+3. downloads the SHA-256 metadata again;
+4. requires both published hashes to be identical;
+5. calculates the local PHAR SHA-256;
+6. requires it to equal that stable hash.
 
-If the stable pointer rotates during the transaction, installation fails and may be retried later.
-
-No checksum bypass exists.
+If the stable pointer changes during the transaction, installation fails closed instead of combining metadata from different releases.
 
 ## Managed PHP prerequisite
 
-Composer is not allowed to attach itself to an arbitrary PHP executable.
-
-The helper requires the PHP runtime previously created by the devkit PHP Windows runtime component under:
+Composer is not attached to an arbitrary PHP executable. The helper requires the devkit-managed runtime under:
 
 ```text
 %LOCALAPPDATA%\devkit-wulf\php
 ```
 
-It requires:
+and verifies both:
 
 ```text
 php.exe
 .devkit-wulf-artifact.json
 ```
 
-and verifies that the marker says:
-
-- environment `php`;
-- component `php-windows-runtime`;
-- the recorded `php_sha256` equals the current `php.exe` SHA-256.
-
-A changed, unowned or unmarked PHP runtime causes GATE-08 to fail before Composer mutation.
+The PHP marker must identify the devkit-managed Windows runtime and its recorded `php_sha256` must match the current executable. Changed, unowned, or unmarked PHP fails GATE-08 before Composer mutation.
 
 ## Installation layout
 
-Composer is installed into the same user-local managed PHP directory:
+Composer is installed into the same managed PHP directory:
 
 ```text
 %LOCALAPPDATA%\devkit-wulf\php\composer.phar
@@ -88,56 +75,29 @@ The wrapper is deterministic:
 "%~dp0php.exe" "%~dp0composer.phar" %*
 ```
 
-This ensures `composer` uses the adjacent devkit-managed PHP runtime instead of whichever PHP executable happens to appear elsewhere in PATH.
+This binds `composer` to the adjacent managed PHP runtime rather than an unrelated PHP elsewhere on PATH.
 
-## PATH policy
+## PATH and privilege policy
 
-The managed PHP directory must already be present in the current process PATH.
-
-The helper does not:
-
-- modify persistent user PATH;
-- modify machine PATH;
-- edit shell startup files;
-- require Administrator privileges.
-
-`path_mutation` remains `false` in state records.
+The managed PHP directory must already be present in the current-process PATH contract. The helper does not modify persistent user/machine PATH, edit shell startup files, or request Administrator privileges.
 
 ## Functional verification
 
-Before committing the PHAR into the managed directory, the helper runs the staged PHAR through the managed PHP runtime using the equivalent of:
+Before final placement, the staged PHAR is executed through the managed PHP runtime using the equivalent of:
 
 ```text
 php.exe composer.phar --version --no-ansi
 ```
 
-The output must contain a semantic `MAJOR.MINOR.PATCH` Composer version matching the manifest policy.
+The output must contain a version matching the manifest policy. The functional check is repeated after installation; download/hash success alone is not sufficient.
 
-After installation the same functional version check is repeated against the installed PHAR. A successful download/hash alone is not considered sufficient.
+## Marker, conflict handling, and idempotency
 
-## Marker and idempotency
+The Composer ownership marker binds the component to the Composer version, exact PHAR/checksum sources, PHAR SHA-256, and managed PHP SHA-256.
 
-The Composer ownership marker records:
+A subsequent installation is idempotent only when the PHAR, wrapper, marker, current stable hash, and PHP binding all verify. Unowned or changed files are refused instead of overwritten. A newly published stable Composer release is not silently substituted over an older managed release.
 
-- environment `php`;
-- component `composer`;
-- publisher;
-- Composer version;
-- exact PHAR URL;
-- exact checksum URL;
-- PHAR SHA-256;
-- managed PHP SHA-256.
-
-A subsequent installation is idempotent only when:
-
-1. `composer.phar`, `composer.bat` and the marker are regular non-reparse-point files;
-2. the current PHAR hash matches the newly verified stable hash;
-3. the marker source/hash match the current stable artifact;
-4. the PHP hash still matches the runtime bound into the marker.
-
-Any unowned or changed Composer file fails under GATE-08 instead of being overwritten or adopted.
-
-A newly published stable Composer release is therefore not silently substituted over an older managed release without the normal conflict/migration decision.
+`safe_remove` remains false until ownership-aware removal is implemented.
 
 ## State tracking
 
@@ -147,35 +107,23 @@ State is appended to:
 %DEVKIT_WULF_STATE_DIR%\composer-windows.jsonl
 ```
 
-or the default devkit-wulf local state directory when the override is absent.
+or the default local devkit-wulf state directory. Reparse-point state paths are refused. Records include publisher, component/action, version, source URLs, PHAR/PHP hashes, destination, creation state, and `path_mutation: false`.
 
-State records include:
+## Combined Windows PHP orchestration
 
-- publisher;
-- environment/component;
-- action;
-- Composer version;
-- source/checksum URLs;
-- PHAR SHA-256;
-- PHP SHA-256;
-- destination;
-- whether the artifact was created;
-- `path_mutation: false`.
+The central integration now exists in:
 
-Reparse-point state files/directories are refused.
+```text
+lib/php-windows-environment.ps1
+```
 
-## Integration status
+The orchestration intentionally performs:
 
-With the runtime and Composer helpers both present, the two executable requirements of the Windows PHP environment can now be satisfied through separately verified components.
+1. PHP runtime installation/observation;
+2. Composer installation only after PHP ownership verification;
+3. final `php --version` and `composer --version` environment verification.
 
-Central `devkit-wulf install php` routing should still be activated only in a follow-up that:
-
-1. plans both components together;
-2. installs PHP runtime first;
-3. installs Composer only after PHP ownership verification;
-4. runs the existing `php --version` and `composer --version` environment verification;
-5. preserves the current experimental support state;
-6. adds end-to-end Windows target validation.
+Component failure and final verification failure are recorded distinctly. Central routing does not erase the individual integrity contracts and does not constitute support promotion.
 
 ## Upstream references
 
