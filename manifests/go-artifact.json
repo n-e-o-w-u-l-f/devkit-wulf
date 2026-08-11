@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "publisher": "The Go Authors",
+  "product": "Go toolchain",
+  "support": "experimental",
+  "release_index_url": "https://go.dev/dl/?mode=json",
+  "download_base": "https://go.dev/dl",
+  "version_pattern": "^go[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$",
+  "install": {
+    "destination_template": "{home}/.local/share/devkit-wulf/go",
+    "path_directory_template": "{home}/.local/share/devkit-wulf/go/bin",
+    "marker_template": "{home}/.local/share/devkit-wulf/go/.devkit-wulf-go.json",
+    "root_directory": "go",
+    "critical_files": ["bin/go", "bin/gofmt"]
+  },
+  "targets": {
+    "linux": {
+      "go_os": "linux",
+      "archive_format": "tar.gz",
+      "architectures": ["amd64", "arm64", "riscv64", "ppc64le", "s390x"]
+    },
+    "macos": {
+      "go_os": "darwin",
+      "archive_format": "tar.gz",
+      "architectures": ["amd64", "arm64"]
+    }
+  },
+  "policy": {
+    "no_remote_script_execution": true,
+    "no_path_mutation": true,
+    "no_privilege": true,
+    "safe_remove": false,
+    "automatic_upgrade": false
+  }
+}
