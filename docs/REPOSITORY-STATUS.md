@@ -83,16 +83,18 @@ These must be reconciled before CI can be treated as a meaningful promotion sign
 
 ## Documentation status
 
-The canonical English README already describes `installers/` as the release-facing boundary and correctly warns that the project is pre-1.0 and not broadly supported.
+The audit found documentation lag in several areas: the changelog did not reflect the 2026-08-11 implementation wave, the roadmap described several implemented artifact paths as future work, some component documents described active routing as pending, and the translated READMEs still exposed the older `bin/`-centric boundary.
 
-The audit found documentation lag in several areas:
+The ReadmeGPT reconciliation branch now updates:
 
-- `CHANGELOG.md` did not yet reflect the large 2026-08-11 implementation wave;
-- `ROADMAP.md` still described several product-specific artifact paths as wholly future work;
-- some environment documents still described now-active routes as future integrations;
-- translated READMEs remain behind the canonical English release-boundary wording and require synchronized follow-up.
+- canonical `README.md`;
+- all maintained README translations (German, French, Polish, Simplified Chinese, Russian and Spanish);
+- `ROADMAP.md` and `CHANGELOG.md`;
+- `environments/README.md` and `installers/README.md`;
+- installer architecture and affected environment-component documentation;
+- this canonical repository-state snapshot.
 
-This branch reconciles the canonical status/roadmap/changelog and selected architecture/environment documentation. Translation synchronization remains a documentation gate until completed.
+All maintained README translations on this branch now describe the same release-facing `installers/` boundary, canonical `xcode` environment ID, selector-routing state, CI limitation, and pre-1.0 support boundary as the English README. Future material README changes must continue to follow `docs/TRANSLATIONS.md`.
 
 ## GitHub and release state
 
