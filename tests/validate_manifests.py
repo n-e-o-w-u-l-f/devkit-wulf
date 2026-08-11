@@ -82,9 +82,9 @@ def main() -> None:
     for family in ("debian", "arch", "fedora", "rhel", "opensuse"):
         assert android["platforms"][family]["architectures"] == ["amd64"], f"Android Studio Linux ARM must not be advertised for {family}"
 
-    apple = envs["apple"]
-    assert apple["platforms"]["windows"]["support"] == "unsupported"
-    assert apple["platforms"]["macos"]["strategy"] == "xcode"
+    xcode = envs["xcode"]
+    assert xcode["platforms"]["windows"]["support"] == "unsupported"
+    assert xcode["platforms"]["macos"]["strategy"] == "xcode"
 
     go = envs["go"]
     assert go.get("cross_targets"), "Go cross targets must be represented separately from host support"
