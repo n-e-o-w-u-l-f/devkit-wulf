@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/installer-families.schema.json",
+  "title": "devkit-wulf system-native installer families",
+  "type": "object",
+  "required": ["schema_version", "architecture", "policy", "shared_contracts", "families"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "architecture": {"const": "system-native-entrypoints-shared-environment-contracts"},
+    "policy": {
+      "type": "object",
+      "required": [
+        "universal_release_artifact",
+        "shared_environment_contracts",
+        "shared_internal_core_allowed",
+        "system_native_entrypoint_required",
+        "windows_executable_formats_windows_only",
+        "wsl_runs_linux_payload_inside_distribution"
+      ],
+      "properties": {
+        "universal_release_artifact": {"const": false},
+        "shared_environment_contracts": {"const": true},
+        "shared_internal_core_allowed": {"const": true},
+        "system_native_entrypoint_required": {"const": true},
+        "windows_executable_formats_windows_only": {"const": true},
+        "wsl_runs_linux_payload_inside_distribution": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "shared_contracts": {
+      "type": "object",
+      "required": ["environment_catalog", "version_specific_contract_root", "rule"],
+      "properties": {
+        "environment_catalog": {"const": "manifests/environments.json"},
+        "version_specific_contract_root": {"const": "environments"},
+        "rule": {"type": "string", "minLength": 20}
+      },
+      "additionalProperties": false
+    },
+    "families": {
+      "type": "object",
+      "required": [
+        "windows-native",
+        "linux-native",
+        "wsl2-linux",
+        "macos-native",
+        "bsd-native",
+        "solaris-illumos-native",
+        "aix-native"
+      ],
+      "properties": {
+        "windows-native": {"$ref": "#/$defs/family"},
+        "linux-native": {"$ref": "#/$defs/family"},
+        "wsl2-linux": {"$ref": "#/$defs/family"},
+        "macos-native": {"$ref": "#/$defs/family"},
+        "bsd-native": {"$ref": "#/$defs/family"},
+        "solaris-illumos-native": {"$ref": "#/$defs/family"},
+        "aix-native": {"$ref": "#/$defs/family"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "family": {
+      "type": "object",
+      "required": [
+        "host_family",
+        "domain",
+        "runtime",
+        "entrypoint",
+        "internal_core",
+        "release_formats",
+        "forbidden_release_formats"
+      ],
+      "properties": {
+        "host_family": {
+          "type": "string",
+          "enum": ["windows", "linux", "macos", "bsd", "solaris-illumos", "aix"]
+        },
+        "domain": {"type": "string", "enum": ["native", "wsl2"]},
+        "runtime": {"type": "string", "enum": ["powershell", "posix-sh"]},
+        "entrypoint": {"type": "string", "pattern": "^installers/[^/]+/devkit-wulf\\.(ps1|sh)$"},
+        "internal_core": {"type": "string", "enum": ["bin/devkit-wulf", "bin/devkit-wulf.ps1"]},
+        "release_formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}
+        },
+        "forbidden_release_formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}
+        },
+        "notes": {"type": "string", "minLength": 10}
+      },
+      "additionalProperties": false
+    }
+  }
+}
