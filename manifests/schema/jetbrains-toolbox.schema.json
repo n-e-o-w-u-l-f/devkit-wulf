@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/jetbrains-toolbox.schema.json",
+  "title": "devkit-wulf JetBrains Toolbox artifact contract",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "research_date",
+    "publisher",
+    "product_code",
+    "release_type",
+    "api_url",
+    "version_pattern",
+    "allowed_download_hosts",
+    "targets"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"const": "JetBrains s.r.o."},
+    "product_code": {"const": "TBA"},
+    "release_type": {"const": "release"},
+    "api_url": {
+      "const": "https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release"
+    },
+    "version_pattern": {"type": "string", "minLength": 8},
+    "allowed_download_hosts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["download.jetbrains.com", "download-cdn.jetbrains.com"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "targets": {
+      "type": "object",
+      "required": ["linux"],
+      "additionalProperties": false,
+      "properties": {
+        "linux": {"$ref": "#/$defs/target"}
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "architecture": {
+      "type": "object",
+      "required": ["download_key"],
+      "properties": {
+        "download_key": {"type": "string", "enum": ["linux", "linuxARM64"]}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "archive_format",
+        "destination_template",
+        "path_directory_template",
+        "marker_template",
+        "root_directory_template",
+        "executable_relative_path",
+        "architectures"
+      ],
+      "properties": {
+        "archive_format": {"const": "tar.gz"},
+        "destination_template": {"const": "{home}/.local/bin/jetbrains-toolbox"},
+        "path_directory_template": {"const": "{home}/.local/bin"},
+        "marker_template": {"const": "{home}/.local/bin/.jetbrains-toolbox.devkit-wulf.json"},
+        "root_directory_template": {"const": "jetbrains-toolbox-{version}"},
+        "executable_relative_path": {"const": "jetbrains-toolbox"},
+        "architectures": {
+          "type": "object",
+          "required": ["amd64", "arm64"],
+          "additionalProperties": false,
+          "properties": {
+            "amd64": {"allOf": [{"$ref": "#/$defs/architecture"}, {"properties": {"download_key": {"const": "linux"}}}]},
+            "arm64": {"allOf": [{"$ref": "#/$defs/architecture"}, {"properties": {"download_key": {"const": "linuxARM64"}}}]}
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
