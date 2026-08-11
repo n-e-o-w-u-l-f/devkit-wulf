@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "environment": "flutter",
+  "selector": "flutter@stable",
+  "research_date": "2026-08-11",
+  "policy": {
+    "support": "experimental",
+    "no_path_mutation": true,
+    "no_privilege": true,
+    "automatic_upgrade": false,
+    "wsl_inheritance": false
+  },
+  "adapters": {
+    "windows-native": {
+      "support": "experimental",
+      "strategy": "verified-powershell-artifact",
+      "architectures": ["amd64"],
+      "artifact_manifest": "manifests/flutter-windows.json",
+      "helper": "lib/flutter-windows.ps1",
+      "entrypoint": "installers/windows/environments/flutter-stable.ps1"
+    },
+    "linux-native": {
+      "support": "experimental",
+      "strategy": "verified-posix-artifact",
+      "architectures": ["amd64"],
+      "artifact_manifest": "manifests/artifacts.json",
+      "artifact_id": "flutter",
+      "helper": "lib/artifacts.sh",
+      "environment_helper": "lib/flutter-posix-environment.sh",
+      "entrypoint": "installers/linux/environments/flutter-stable.sh"
+    },
+    "macos-native": {
+      "support": "experimental",
+      "strategy": "verified-posix-artifact",
+      "architectures": ["amd64", "arm64"],
+      "artifact_manifest": "manifests/artifacts.json",
+      "artifact_id": "flutter",
+      "helper": "lib/artifacts.sh",
+      "environment_helper": "lib/flutter-posix-environment.sh",
+      "entrypoint": "installers/macos/environments/flutter-stable.sh"
+    },
+    "wsl2-linux": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The reviewed Flutter archive contracts have not yet been validated as a distinct WSL2 host/domain path; native Linux support is not inherited automatically."
+    },
+    "bsd-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The reviewed Flutter stable artifact contracts do not contain BSD host archives."
+    },
+    "solaris-illumos-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The reviewed Flutter stable artifact contracts do not contain Solaris or illumos host archives."
+    },
+    "aix-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The reviewed Flutter stable artifact contracts do not contain an AIX host archive."
+    }
+  }
+}

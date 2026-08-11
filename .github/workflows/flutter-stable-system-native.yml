@@ -1,0 +1,126 @@
+name: Flutter stable system-native contract
+
+on:
+  pull_request:
+    paths:
+      - 'environments/flutter/stable.json'
+      - 'environments/schema/flutter-stable.schema.json'
+      - 'manifests/artifacts.json'
+      - 'manifests/flutter-windows.json'
+      - 'lib/artifacts.sh'
+      - 'lib/flutter-posix-environment.sh'
+      - 'lib/flutter-windows.ps1'
+      - 'installers/linux/devkit-wulf.sh'
+      - 'installers/wsl/devkit-wulf.sh'
+      - 'installers/macos/devkit-wulf.sh'
+      - 'installers/windows/devkit-wulf.ps1'
+      - 'installers/linux/environments/flutter-stable.sh'
+      - 'installers/macos/environments/flutter-stable.sh'
+      - 'installers/windows/environments/flutter-stable.ps1'
+      - 'tests/test_flutter_posix_environment.sh'
+      - 'tests/validate_flutter_stable_system_native.py'
+      - 'tests/validate_python_312_routing.py'
+      - 'tests/validate_go_stable_system_native.py'
+      - 'tests/validate_rust_stable_system_native.py'
+      - 'docs/environments/flutter-stable.md'
+      - '.github/workflows/flutter-stable-system-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'environments/flutter/stable.json'
+      - 'manifests/artifacts.json'
+      - 'manifests/flutter-windows.json'
+      - 'lib/flutter-posix-environment.sh'
+      - 'lib/flutter-windows.ps1'
+      - 'installers/**/devkit-wulf.*'
+      - 'installers/**/environments/flutter-stable.*'
+      - 'tests/test_flutter_posix_environment.sh'
+      - 'tests/validate_flutter_stable_system_native.py'
+      - 'docs/environments/flutter-stable.md'
+      - '.github/workflows/flutter-stable-system-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Flutter and existing system-native routes
+        run: |
+          python3 tests/validate_flutter_stable_system_native.py
+          python3 tests/validate_python_312_routing.py
+          python3 tests/validate_go_stable_system_native.py
+          python3 tests/validate_rust_stable_system_native.py
+
+      - name: Parse POSIX Flutter routes and adapters
+        shell: sh
+        run: |
+          set -eu
+          sh -n installers/linux/devkit-wulf.sh
+          sh -n installers/wsl/devkit-wulf.sh
+          sh -n installers/macos/devkit-wulf.sh
+          sh -n installers/linux/environments/flutter-stable.sh
+          sh -n installers/macos/environments/flutter-stable.sh
+          sh -n lib/flutter-posix-environment.sh
+          sh -n tests/test_flutter_posix_environment.sh
+
+      - name: ShellCheck POSIX Flutter routing and helpers
+        run: >-
+          shellcheck
+          installers/linux/devkit-wulf.sh
+          installers/wsl/devkit-wulf.sh
+          installers/macos/devkit-wulf.sh
+          installers/linux/environments/flutter-stable.sh
+          installers/macos/environments/flutter-stable.sh
+          lib/flutter-posix-environment.sh
+          tests/test_flutter_posix_environment.sh
+
+      - name: Run offline Flutter managed-verification fixture
+        run: sh tests/test_flutter_posix_environment.sh
+
+      - name: Experimental gate precedes Flutter artifact dependencies and network
+        shell: sh
+        run: |
+          set -eu
+          if ./installers/linux/devkit-wulf.sh install flutter@stable >gate.out 2>&1; then
+            echo 'flutter@stable unexpectedly installed without --experimental' >&2
+            exit 1
+          fi
+          grep -F 'install requires --experimental' gate.out
+
+  windows-contract:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse Windows Flutter route and adapter
+        shell: pwsh
+        run: |
+          foreach ($file in @(
+            'installers/windows/devkit-wulf.ps1',
+            'installers/windows/environments/flutter-stable.ps1',
+            'lib/flutter-windows.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+            }
+          }
+
+      - name: Experimental gate precedes Flutter Windows plan/download prerequisites
+        shell: pwsh
+        run: |
+          try {
+            & .\installers\windows\devkit-wulf.ps1 install 'flutter@stable'
+            throw 'flutter@stable unexpectedly installed without -Experimental'
+          } catch {
+            if ($_.Exception.Message -notmatch 'install requires -Experimental') {
+              throw
+            }
+          }

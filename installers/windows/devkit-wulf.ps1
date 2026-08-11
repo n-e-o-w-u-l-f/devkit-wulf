@@ -25,12 +25,21 @@ if ($Target -eq 'python@3.12') {
     if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) {
         throw '[devkit-wulf] python@3.12 does not accept -AcceptRemoteScript, -Supported or -Platform.'
     }
-
     $Adapter = Join-Path $RootDir 'installers\windows\environments\python-3.12.ps1'
-    if (-not (Test-Path -LiteralPath $Adapter -PathType Leaf)) {
-        throw "[devkit-wulf] Python 3.12 Windows adapter not found: $Adapter"
-    }
+    if (-not (Test-Path -LiteralPath $Adapter -PathType Leaf)) { throw "[devkit-wulf] Python 3.12 Windows adapter not found: $Adapter" }
+    & $Adapter -Action $Command -Experimental:$Experimental
+    return
+}
 
+if ($Target -eq 'flutter@stable') {
+    if ($Command -notin @('plan', 'install', 'verify')) {
+        throw '[devkit-wulf] flutter@stable supports only plan, install and verify.'
+    }
+    if ($AcceptRemoteScript -or $Supported -or $PSBoundParameters.ContainsKey('Platform')) {
+        throw '[devkit-wulf] flutter@stable does not accept -AcceptRemoteScript, -Supported or -Platform.'
+    }
+    $Adapter = Join-Path $RootDir 'installers\windows\environments\flutter-stable.ps1'
+    if (-not (Test-Path -LiteralPath $Adapter -PathType Leaf)) { throw "[devkit-wulf] Flutter stable Windows adapter not found: $Adapter" }
     & $Adapter -Action $Command -Experimental:$Experimental
     return
 }

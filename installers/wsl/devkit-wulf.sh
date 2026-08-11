@@ -20,6 +20,10 @@ done
 SCRIPT_DIR=$(CDPATH= cd -P "$(dirname "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -P "$SCRIPT_DIR/../.." && pwd)
 
+if [ "${2:-}" = "flutter@stable" ]; then
+    fail "flutter@stable is not enabled for WSL2: the reviewed native Linux Flutter archive contract is not inherited into the WSL domain automatically."
+fi
+
 if [ "${2:-}" = "python@3.12" ]; then
     case "${1:-}" in
         plan|install|verify)
