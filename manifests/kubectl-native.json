@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "support": "experimental",
+  "publisher": "Kubernetes SIG CLI",
+  "version": {
+    "resolver": "text-url",
+    "url": "https://dl.k8s.io/release/stable.txt",
+    "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+  },
+  "targets": {
+    "windows": {
+      "source": "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/",
+      "architectures": {
+        "amd64": "amd64"
+      },
+      "filename": "kubectl.exe",
+      "checksum_filename": "kubectl.exe.sha256",
+      "url_template": "https://dl.k8s.io/release/{version}/bin/windows/{architecture}/kubectl.exe",
+      "checksum_url_template": "https://dl.k8s.io/release/{version}/bin/windows/{architecture}/kubectl.exe.sha256",
+      "root_template": "{localappdata}/devkit-wulf/kubectl",
+      "path_directory_relative": "bin",
+      "marker_relative_path": ".devkit-wulf-kubectl.json",
+      "mode": "native-windows",
+      "integrity": "sha256-sidecar",
+      "privileged": false,
+      "path_mutation": false
+    },
+    "macos": {
+      "source": "https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/",
+      "architectures": {
+        "amd64": "amd64",
+        "arm64": "arm64"
+      },
+      "filename": "kubectl",
+      "checksum_filename": "kubectl.sha256",
+      "url_template": "https://dl.k8s.io/release/{version}/bin/darwin/{architecture}/kubectl",
+      "checksum_url_template": "https://dl.k8s.io/release/{version}/bin/darwin/{architecture}/kubectl.sha256",
+      "root_template": "{home}/.local/share/devkit-wulf/kubectl",
+      "path_directory_relative": "bin",
+      "marker_relative_path": ".devkit-wulf-kubectl.json",
+      "mode": "0755",
+      "integrity": "sha256-sidecar",
+      "privileged": false,
+      "path_mutation": false
+    }
+  }
+}

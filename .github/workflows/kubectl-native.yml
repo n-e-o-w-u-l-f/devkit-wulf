@@ -1,0 +1,99 @@
+name: Native kubectl artifact contracts
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/kubectl-native.json'
+      - 'manifests/schema/kubectl-native.schema.json'
+      - 'lib/kubectl-windows.ps1'
+      - 'lib/kubectl-macos.sh'
+      - 'installers/windows/environments/kubectl-stable.ps1'
+      - 'installers/macos/environments/kubectl-stable.sh'
+      - 'tests/test_kubectl_windows.ps1'
+      - 'tests/test_kubectl_macos.sh'
+      - 'tests/validate_kubectl_native.py'
+      - 'docs/environments/kubectl-native.md'
+      - '.github/workflows/kubectl-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifests/kubectl-native.json'
+      - 'manifests/schema/kubectl-native.schema.json'
+      - 'lib/kubectl-windows.ps1'
+      - 'lib/kubectl-macos.sh'
+      - 'installers/windows/environments/kubectl-stable.ps1'
+      - 'installers/macos/environments/kubectl-stable.sh'
+      - 'tests/test_kubectl_windows.ps1'
+      - 'tests/test_kubectl_macos.sh'
+      - 'tests/validate_kubectl_native.py'
+      - 'docs/environments/kubectl-native.md'
+      - '.github/workflows/kubectl-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate manifest and system split
+        run: python3 tests/validate_kubectl_native.py
+      - name: Parse and ShellCheck macOS POSIX implementation
+        shell: sh
+        run: |
+          set -eu
+          sh -n lib/kubectl-macos.sh
+          sh -n installers/macos/environments/kubectl-stable.sh
+          sh -n tests/test_kubectl_macos.sh
+          shellcheck lib/kubectl-macos.sh installers/macos/environments/kubectl-stable.sh tests/test_kubectl_macos.sh
+
+  windows-offline:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse native PowerShell implementation
+        shell: pwsh
+        run: |
+          foreach ($file in @(
+            'lib/kubectl-windows.ps1',
+            'installers/windows/environments/kubectl-stable.ps1',
+            'tests/test_kubectl_windows.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$file: $($_.Message)" }
+              exit 1
+            }
+          }
+      - name: Experimental gate precedes version/checksum network work
+        shell: pwsh
+        run: |
+          try {
+            & .\installers\windows\environments\kubectl-stable.ps1 install
+            throw 'kubectl@stable unexpectedly installed without -Experimental'
+          } catch {
+            if ($_.Exception.Message -notmatch 'install requires -Experimental') { throw }
+          }
+      - name: Run offline Windows kubectl fixture
+        shell: pwsh
+        run: .\tests\test_kubectl_windows.ps1
+
+  macos-offline:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Experimental gate precedes version/checksum network work
+        shell: sh
+        run: |
+          set -eu
+          if sh installers/macos/environments/kubectl-stable.sh install >gate.out 2>&1; then
+            echo 'kubectl@stable unexpectedly installed without --experimental' >&2
+            exit 1
+          fi
+          grep -F 'install requires --experimental' gate.out
+      - name: Run offline macOS kubectl fixture
+        shell: sh
+        run: sh tests/test_kubectl_macos.sh
