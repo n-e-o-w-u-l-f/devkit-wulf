@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "architecture": "system-native-entrypoints-shared-environment-contracts",
+  "policy": {
+    "universal_release_artifact": false,
+    "shared_environment_contracts": true,
+    "shared_internal_core_allowed": true,
+    "system_native_entrypoint_required": true,
+    "windows_executable_formats_windows_only": true,
+    "wsl_runs_linux_payload_inside_distribution": true
+  },
+  "shared_contracts": {
+    "environment_catalog": "manifests/environments.json",
+    "version_specific_contract_root": "environments",
+    "rule": "Environment intent, versions, components, verification semantics and security policy may be shared; installation commands, executable formats, package managers, privilege mechanics and host mutation remain system-specific."
+  },
+  "families": {
+    "windows-native": {
+      "host_family": "windows",
+      "domain": "native",
+      "runtime": "powershell",
+      "entrypoint": "installers/windows/devkit-wulf.ps1",
+      "internal_core": "bin/devkit-wulf.ps1",
+      "release_formats": ["ps1", "zip", "msi", "exe"],
+      "forbidden_release_formats": ["deb", "rpm", "pkg.tar.zst", "apk", "pkgsrc"]
+    },
+    "linux-native": {
+      "host_family": "linux",
+      "domain": "native",
+      "runtime": "posix-sh",
+      "entrypoint": "installers/linux/devkit-wulf.sh",
+      "internal_core": "bin/devkit-wulf",
+      "release_formats": ["sh", "tar.gz", "deb", "rpm", "pkg.tar.zst", "apk"],
+      "forbidden_release_formats": ["exe", "msi", "dmg"]
+    },
+    "wsl2-linux": {
+      "host_family": "linux",
+      "domain": "wsl2",
+      "runtime": "posix-sh",
+      "entrypoint": "installers/wsl/devkit-wulf.sh",
+      "internal_core": "bin/devkit-wulf",
+      "release_formats": ["sh", "tar.gz"],
+      "forbidden_release_formats": ["exe", "msi", "dmg"],
+      "notes": "Executed inside the selected WSL2 Linux distribution. Windows-side WSL provisioning remains a separate PowerShell/system-change path."
+    },
+    "macos-native": {
+      "host_family": "macos",
+      "domain": "native",
+      "runtime": "posix-sh",
+      "entrypoint": "installers/macos/devkit-wulf.sh",
+      "internal_core": "bin/devkit-wulf",
+      "release_formats": ["sh", "tar.gz", "pkg", "dmg"],
+      "forbidden_release_formats": ["exe", "msi", "deb", "rpm"]
+    },
+    "bsd-native": {
+      "host_family": "bsd",
+      "domain": "native",
+      "runtime": "posix-sh",
+      "entrypoint": "installers/bsd/devkit-wulf.sh",
+      "internal_core": "bin/devkit-wulf",
+      "release_formats": ["sh", "tar.gz", "pkg", "pkgsrc"],
+      "forbidden_release_formats": ["exe", "msi", "deb", "rpm", "dmg"]
+    },
+    "solaris-illumos-native": {
+      "host_family": "solaris-illumos",
+      "domain": "native",
+      "runtime": "posix-sh",
+      "entrypoint": "installers/solaris/devkit-wulf.sh",
+      "internal_core": "bin/devkit-wulf",
+      "release_formats": ["sh", "tar.gz", "pkg"],
+      "forbidden_release_formats": ["exe", "msi", "deb", "rpm", "dmg"]
+    },
+    "aix-native": {
+      "host_family": "aix",
+      "domain": "native",
+      "runtime": "posix-sh",
+      "entrypoint": "installers/aix/devkit-wulf.sh",
+      "internal_core": "bin/devkit-wulf",
+      "release_formats": ["sh", "tar.gz"],
+      "forbidden_release_formats": ["exe", "msi", "deb", "rpm", "dmg"]
+    }
+  }
+}
