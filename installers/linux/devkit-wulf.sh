@@ -17,28 +17,57 @@ done
 SCRIPT_DIR=$(CDPATH= cd -P "$(dirname "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -P "$SCRIPT_DIR/../.." && pwd)
 
-route_selector() {
-    selector=$1
-    adapter_name=$2
-    shift 2
-    if [ "${2:-}" = "$selector" ]; then
-        case "${1:-}" in
-            plan|install|verify)
-                action=$1
-                shift 2
-                adapter="$SCRIPT_DIR/environments/$adapter_name"
-                [ -x "$adapter" ] || fail "$selector Linux adapter is missing or not executable: $adapter"
-                exec "$adapter" "$action" "$@"
-                ;;
-            *) fail "$selector supports only plan, install and verify." ;;
-        esac
-    fi
-}
+if [ "${2:-}" = "python@3.12" ]; then
+    case "${1:-}" in
+        plan|install|verify)
+            action=$1
+            shift 2
+            adapter="$SCRIPT_DIR/environments/python-3.12.sh"
+            [ -x "$adapter" ] || fail "Python 3.12 Linux adapter is missing or not executable: $adapter"
+            exec "$adapter" "$action" "$@"
+            ;;
+        *) fail "python@3.12 supports only plan, install and verify." ;;
+    esac
+fi
 
-route_selector 'python@3.12' 'python-3.12.sh' "$@"
-route_selector 'go@stable' 'go-stable.sh' "$@"
-route_selector 'rust@stable' 'rust-stable.sh' "$@"
-route_selector 'flutter@stable' 'flutter-stable.sh' "$@"
+if [ "${2:-}" = "go@stable" ]; then
+    case "${1:-}" in
+        plan|install|verify)
+            action=$1
+            shift 2
+            adapter="$SCRIPT_DIR/environments/go-stable.sh"
+            [ -x "$adapter" ] || fail "Go stable Linux adapter is missing or not executable: $adapter"
+            exec "$adapter" "$action" "$@"
+            ;;
+        *) fail "go@stable supports only plan, install and verify." ;;
+    esac
+fi
+
+if [ "${2:-}" = "rust@stable" ]; then
+    case "${1:-}" in
+        plan|install|verify)
+            action=$1
+            shift 2
+            adapter="$SCRIPT_DIR/environments/rust-stable.sh"
+            [ -x "$adapter" ] || fail "Rust stable Linux adapter is missing or not executable: $adapter"
+            exec "$adapter" "$action" "$@"
+            ;;
+        *) fail "rust@stable supports only plan, install and verify." ;;
+    esac
+fi
+
+if [ "${2:-}" = "flutter@stable" ]; then
+    case "${1:-}" in
+        plan|install|verify)
+            action=$1
+            shift 2
+            adapter="$SCRIPT_DIR/environments/flutter-stable.sh"
+            [ -x "$adapter" ] || fail "Flutter stable Linux adapter is missing or not executable: $adapter"
+            exec "$adapter" "$action" "$@"
+            ;;
+        *) fail "flutter@stable supports only plan, install and verify." ;;
+    esac
+fi
 
 CORE="$ROOT_DIR/bin/devkit-wulf"
 [ -f "$CORE" ] || fail "POSIX orchestrator core not found: $CORE"
