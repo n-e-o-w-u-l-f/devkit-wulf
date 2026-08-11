@@ -3,7 +3,12 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-dotnet-test.XXXXXX")
-trap 'rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
+cleanup_test_root() {
+  find "$TEST_ROOT" -type l -delete 2>/dev/null || true
+  find "$TEST_ROOT" -type f -delete 2>/dev/null || true
+  find "$TEST_ROOT" -depth -type d -exec rmdir {} \; 2>/dev/null || true
+}
+trap 'cleanup_test_root' EXIT HUP INT TERM
 STATE_DIR="$TEST_ROOT/state"
 BIN_DIR="$TEST_ROOT/bin"
 mkdir -p "$STATE_DIR" "$BIN_DIR" "$TEST_ROOT/etc/apt" "$TEST_ROOT/keys"
@@ -20,8 +25,10 @@ PACKAGE_LOG="$TEST_ROOT/packages.log"
 
 privileged() {
   printf '%s\n' "$*" >> "$MUTATION_LOG"
-  case "$1" in
-    install) command install "${@:2}" ;;
+  _test_cmd=$1
+  shift
+  case "$_test_cmd" in
+    install) command install "$@" ;;
     apt-get|rpm|zypper) return 0 ;;
     *) return 0 ;;
   esac
@@ -110,7 +117,6 @@ EOF
 # shellcheck source=../lib/dotnet-linux.sh
 . "$ROOT/lib/dotnet-linux.sh"
 
-# Exact support matrix.
 dotnet_linux_validate_target debian 12 amd64 apt
 dotnet_linux_validate_target debian 13 arm64 apt
 dotnet_linux_validate_target fedora 44 amd64 dnf
@@ -125,7 +131,6 @@ printf '%s\n' "$plan" | grep 'package_source: microsoft' >/dev/null
 printf '%s\n' "$plan" | grep 'mutates_host: false' >/dev/null
 printf '%s\n' "$plan" | grep 'BC52 8686' >/dev/null
 
-# Microsoft repository path: key is verified before any mutation, repo content is deterministic.
 : > "$MUTATION_LOG"
 : > "$PACKAGE_LOG"
 rm -f "$BIN_DIR/dotnet"
@@ -136,13 +141,11 @@ grep 'https://packages.microsoft.com/debian/12/prod bookworm main' "$TEST_ROOT/e
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
 [ "$(tail -n 1 "$STATE_DIR/dotnet-linux.jsonl" | jq -r '.action')" = installed-verified ]
 
-# Second install is observation-only.
 lines_before=$(wc -l < "$PACKAGE_LOG")
 dotnet_linux_install debian 12 amd64 apt
 [ "$(wc -l < "$PACKAGE_LOG")" -eq "$lines_before" ]
 [ "$(tail -n 1 "$STATE_DIR/dotnet-linux.jsonl" | jq -r '.action')" = observed-existing ]
 
-# Different repository content blocks before package mutation.
 rm -f "$BIN_DIR/dotnet"
 printf 'foreign repository\n' > "$TEST_ROOT/etc/apt/microsoft-prod.list"
 : > "$PACKAGE_LOG"
@@ -150,7 +153,6 @@ if (dotnet_linux_install debian 12 amd64 apt >/dev/null 2>&1); then echo "foreig
 [ ! -s "$PACKAGE_LOG" ]
 rm -f "$TEST_ROOT/etc/apt/microsoft-prod.list" "$TEST_ROOT/keys/microsoft-prod.gpg"
 
-# Fingerprint mismatch is a hard fail before mutation.
 FAKE_FPR=0000000000000000000000000000000000000000
 export FAKE_FPR
 : > "$MUTATION_LOG"
@@ -158,13 +160,11 @@ if (dotnet_linux_install debian 12 amd64 apt >/dev/null 2>&1); then echo "finger
 [ ! -s "$MUTATION_LOG" ]
 unset FAKE_FPR
 
-# Distribution-owned Fedora package path does not create a vendor repository.
 rm -f "$BIN_DIR/dotnet"
 : > "$PACKAGE_LOG"
 dotnet_linux_install fedora 44 amd64 dnf
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
 
-# RHEL requires a registered subscription before package mutation.
 rm -f "$BIN_DIR/dotnet"
 RHEL_REGISTERED=0
 export RHEL_REGISTERED
@@ -176,7 +176,6 @@ export RHEL_REGISTERED
 dotnet_linux_install rhel 10 amd64 dnf
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
 
-# State paths may not be symlinks.
 rm -f "$STATE_DIR/dotnet-linux.jsonl"
 printf '{}\n' > "$TEST_ROOT/state-target"
 ln -s "$TEST_ROOT/state-target" "$STATE_DIR/dotnet-linux.jsonl"
