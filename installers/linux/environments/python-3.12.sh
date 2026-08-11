@@ -32,10 +32,20 @@ command -v apt-get >/dev/null 2>&1 || fail "apt-get is required."
 command -v dpkg-query >/dev/null 2>&1 || fail "dpkg-query is required."
 
 ACTION=${1:-plan}
+EXPERIMENTAL=0
 case "$ACTION" in
     plan|install|verify) ;;
-    *) fail "Usage: $0 [plan|install|verify]" ;;
+    *) fail "Usage: $0 [plan|install|verify] [--experimental]" ;;
 esac
+case "${2:-}" in
+    '') ;;
+    --experimental) EXPERIMENTAL=1 ;;
+    *) fail "Unknown option: ${2:-}" ;;
+esac
+[ "${3:-}" = '' ] || fail "Too many arguments."
+if [ "$ACTION" = install ] && [ "$EXPERIMENTAL" -ne 1 ]; then
+    fail "Python 3.12 remains experimental; install requires --experimental."
+fi
 
 run_privileged() {
     if [ "$(id -u)" -eq 0 ]; then
@@ -74,12 +84,12 @@ verify_python312() {
     esac
 
     tmp=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-python312.XXXXXX") || fail "Unable to create venv smoke directory."
-    trap 'cleanup_smoke_dir "$tmp"' EXIT HUP INT TERM
+    trap 'cleanup_smoke_dir "$tmp"' 0 1 2 15
     python3.12 -m venv "$tmp" || fail "venv smoke test failed."
     "$tmp/bin/python" -m pip --version >/dev/null || fail "pip smoke test inside venv failed."
     cleanup_smoke_dir "$tmp"
-    trap - EXIT HUP INT TERM
     tmp=''
+    trap - 0 1 2 15
 
     printf '%s\n' "python_executable=$(command -v python3.12)"
     printf '%s\n' "python_version=$version"
@@ -97,6 +107,7 @@ case "$ACTION" in
         printf '%s\n' 'version_policy=distribution-security-backports'
         printf '%s\n' 'system_python_replacement=false'
         printf '%s\n' 'global_pip_install=false'
+        printf '%s\n' 'privilege=apt-commands-only'
         apt-cache policy python3.12 python3.12-venv 2>/dev/null || true
         ;;
     verify)
