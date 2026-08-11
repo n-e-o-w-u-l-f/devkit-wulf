@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/php-windows.schema.json",
+  "title": "devkit-wulf PHP Windows archive contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "publisher", "release_index_url", "download_base_url", "branch_policy", "version_pattern", "build_pattern", "target"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"const": "PHP Group"},
+    "release_index_url": {"const": "https://windows.php.net/downloads/releases/releases.json"},
+    "download_base_url": {"const": "https://windows.php.net/downloads/releases"},
+    "branch_policy": {"const": "latest-stable-branch"},
+    "version_pattern": {"type": "string", "minLength": 8},
+    "build_pattern": {"const": "^nts-vs[0-9]+-x64$"},
+    "target": {
+      "type": "object",
+      "required": ["platform", "architecture", "destination_template", "path_directory_template", "marker_name", "archive_format", "php_executable", "integrity", "thread_safety", "privileged"],
+      "properties": {
+        "platform": {"const": "windows"},
+        "architecture": {"const": "amd64"},
+        "destination_template": {"const": "{localappdata}\\devkit-wulf\\php"},
+        "path_directory_template": {"const": "{localappdata}\\devkit-wulf\\php"},
+        "marker_name": {"const": ".devkit-wulf-artifact.json"},
+        "archive_format": {"const": "zip"},
+        "php_executable": {"const": "php.exe"},
+        "integrity": {"const": "sha256-release-metadata"},
+        "thread_safety": {"const": "nts"},
+        "privileged": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
