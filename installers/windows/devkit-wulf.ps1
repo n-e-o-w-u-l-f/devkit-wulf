@@ -22,16 +22,12 @@ if (-not (Test-Path -LiteralPath $Core -PathType Leaf)) {
     throw "[devkit-wulf] Windows orchestrator core not found: $Core"
 }
 
-$Forward = @()
-if ($PSBoundParameters.ContainsKey('Command')) { $Forward += $Command }
-if ($PSBoundParameters.ContainsKey('Target')) { $Forward += $Target }
-if ($Experimental) { $Forward += '-Experimental' }
-if ($AcceptRemoteScript) { $Forward += '-AcceptRemoteScript' }
-if ($Supported) { $Forward += '-Supported' }
-if ($PSBoundParameters.ContainsKey('Platform')) {
-    $Forward += '-Platform'
-    $Forward += $Platform
-}
+$Forward = @{}
+if ($PSBoundParameters.ContainsKey('Command')) { $Forward.Command = $Command }
+if ($PSBoundParameters.ContainsKey('Target')) { $Forward.Target = $Target }
+if ($Experimental) { $Forward.Experimental = $true }
+if ($AcceptRemoteScript) { $Forward.AcceptRemoteScript = $true }
+if ($Supported) { $Forward.Supported = $true }
+if ($PSBoundParameters.ContainsKey('Platform')) { $Forward.Platform = $Platform }
 
 & $Core @Forward
-if ($LASTEXITCODE -is [int]) { exit $LASTEXITCODE }
