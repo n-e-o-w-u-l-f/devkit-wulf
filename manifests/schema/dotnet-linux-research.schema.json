@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/dotnet-linux-research.schema.json",
+  "title": "devkit-wulf .NET Linux research contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "publisher", "product", "activation", "activation_reason", "targets", "activation_requirements", "non_inheritance_policy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"const": "Microsoft"},
+    "product": {"const": ".NET"},
+    "activation": {"const": false},
+    "activation_reason": {"type": "string", "minLength": 20},
+    "targets": {
+      "type": "object",
+      "required": ["debian", "fedora", "rhel", "opensuse-leap"],
+      "additionalProperties": false,
+      "properties": {
+        "debian": {"$ref": "#/$defs/target"},
+        "fedora": {"$ref": "#/$defs/target"},
+        "rhel": {"$ref": "#/$defs/target"},
+        "opensuse-leap": {"$ref": "#/$defs/target"}
+      }
+    },
+    "activation_requirements": {"type": "array", "minItems": 7, "items": {"type": "string", "minLength": 10}, "uniqueItems": true},
+    "non_inheritance_policy": {"type": "array", "minItems": 4, "items": {"type": "string", "minLength": 10}, "uniqueItems": true}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "target": {
+      "type": "object",
+      "required": ["scope", "platform_id", "documentation", "intended_strategy", "status"],
+      "properties": {
+        "scope": {"const": "platform"},
+        "platform_id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "documentation": {"type": "string", "pattern": "^https://learn\\.microsoft\\.com/"},
+        "intended_strategy": {"type": "string", "enum": ["vendor-repository-or-distribution-package", "distribution-package-or-vendor-repository"]},
+        "status": {"const": "research-only"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
