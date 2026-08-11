@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/repository-catalog.schema.json",
+  "title": "devkit-wulf vendor repository catalog",
+  "type": "object",
+  "required": ["schema_version", "research_date", "repositories", "native_packages"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "repositories": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/repositoryDefinition"}
+    },
+    "native_packages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {"$ref": "#/$defs/nativePackage"}
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "key": {
+      "type": "object",
+      "required": ["url", "transform"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://"},
+        "destination": {"type": "string", "pattern": "^/"},
+        "transform": {"type": "string", "enum": ["copy", "gpg-dearmor", "repository-key"]}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["documentation", "package_manager", "package", "prerequisites", "keys", "repository_file", "repository_content", "package_signature_required", "repository_signature_required", "tls_verification_required"],
+      "properties": {
+        "documentation": {"type": "string", "pattern": "^https://"},
+        "package_manager": {"type": "string", "enum": ["apt", "dnf", "zypper"]},
+        "package": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+        "prerequisites": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+          "uniqueItems": true
+        },
+        "key_directory": {"type": "string", "pattern": "^/"},
+        "keys": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/key"},
+          "minItems": 1
+        },
+        "repository_file": {"type": "string", "pattern": "^/"},
+        "repository_content": {"type": "string", "minLength": 1},
+        "package_signature_required": {"type": "boolean"},
+        "repository_signature_required": {"type": "boolean"},
+        "tls_verification_required": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "repositoryDefinition": {
+      "type": "object",
+      "required": ["publisher", "targets"],
+      "properties": {
+        "publisher": {"type": "string", "minLength": 1},
+        "targets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/target"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "nativePackage": {
+      "type": "object",
+      "required": ["documentation", "package_manager", "package"],
+      "properties": {
+        "documentation": {"type": "string", "pattern": "^https://"},
+        "package_manager": {"type": "string", "enum": ["apt", "dnf", "zypper", "pacman", "apk", "brew"]},
+        "package": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

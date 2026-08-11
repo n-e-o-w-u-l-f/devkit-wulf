@@ -7,11 +7,14 @@ ENV_MANIFEST="$ROOT_DIR/manifests/environments.json"
 PLATFORM_MANIFEST="$ROOT_DIR/manifests/platforms.json"
 PROFILE_MANIFEST="$ROOT_DIR/profiles/profiles.json"
 ARTIFACT_MANIFEST=${DEVKIT_WULF_ARTIFACT_MANIFEST:-"$ROOT_DIR/manifests/artifacts.json"}
+REPOSITORY_MANIFEST=${DEVKIT_WULF_REPOSITORY_MANIFEST:-"$ROOT_DIR/manifests/repositories.json"}
 STATE_DIR=${DEVKIT_WULF_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/devkit-wulf}
 STATE_FILE="$STATE_DIR/state.jsonl"
 
 # shellcheck source=../lib/artifacts.sh
 . "$ROOT_DIR/lib/artifacts.sh"
+# shellcheck source=../lib/repositories.sh
+. "$ROOT_DIR/lib/repositories.sh"
 
 log() { printf '%s\n' "[devkit-wulf] $*"; }
 warn() { printf '%s\n' "[devkit-wulf] WARNING: $*" >&2; }
@@ -24,6 +27,7 @@ require_jq() {
   jq -e . "$PLATFORM_MANIFEST" >/dev/null || die "platform manifest is invalid JSON"
   jq -e . "$PROFILE_MANIFEST" >/dev/null || die "profile manifest is invalid JSON"
   jq -e . "$ARTIFACT_MANIFEST" >/dev/null || die "artifact manifest is invalid JSON"
+  jq -e . "$REPOSITORY_MANIFEST" >/dev/null || die "repository manifest is invalid JSON"
 }
 
 normalize_arch() {
@@ -160,6 +164,31 @@ package_lines() {
   jq -r --arg e "$env_id" --arg pm "$pm" '.environments[$e].packages[$pm][]? // empty' "$ENV_MANIFEST"
 }
 
+effective_package_lines() {
+  env_id=$1 platform=$2 pm=$3
+  native=$(native_package_json "$env_id" "$platform" || true)
+  if [ -n "$native" ] && [ "$(printf '%s' "$native" | jq -r '.package_manager')" = "$pm" ]; then
+    printf '%s\n' "$(printf '%s' "$native" | jq -r '.package')"
+    return 0
+  fi
+  package_lines "$env_id" "$pm"
+}
+
+resolve_effective_strategy() {
+  env_id=$1 platform=$2 family=$3 declared=$4
+  if [ "$declared" = manual ]; then
+    if [ -n "$(repository_target_json "$env_id" "$family" || true)" ]; then
+      printf vendor-repository
+      return 0
+    fi
+    if [ -n "$(native_package_json "$env_id" "$platform" || true)" ]; then
+      printf package-manager
+      return 0
+    fi
+  fi
+  printf '%s' "$declared"
+}
+
 verify_lines() {
   env_id=$1
   jq -r --arg e "$env_id" '.environments[$e].verify[]' "$ENV_MANIFEST"
@@ -184,14 +213,15 @@ plan_environment() {
   platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager)
   entry=$(resolve_entry "$env_id" "$platform" "$family")
   support=$(printf '%s' "$entry" | jq -r '.support')
-  strategy=$(printf '%s' "$entry" | jq -r '.strategy')
-  if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
-  printf 'environment=%s\nplatform=%s\nfamily=%s\ndomain=%s\narchitecture=%s\nsupport=%s\nstrategy=%s\npackage_manager=%s\n' \
-    "$env_id" "$platform" "$family" "$domain" "$arch" "$support" "$strategy" "$pm"
+  declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+  strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
+  if ! arch_allowed "$entry" "$arch"; then support=unsupported; declared_strategy=unsupported; strategy=unsupported; fi
+  printf 'environment=%s\nplatform=%s\nfamily=%s\ndomain=%s\narchitecture=%s\nsupport=%s\ndeclared_strategy=%s\nstrategy=%s\npackage_manager=%s\n' \
+    "$env_id" "$platform" "$family" "$domain" "$arch" "$support" "$declared_strategy" "$strategy" "$pm"
   notes=$(printf '%s' "$entry" | jq -r '.notes // empty')
   [ -n "$notes" ] && printf 'notes=%s\n' "$notes"
   printf 'packages:\n'
-  packages=$(package_lines "$env_id" "$pm" || true)
+  packages=$(effective_package_lines "$env_id" "$platform" "$pm" || true)
   if [ -n "$packages" ]; then printf '%s\n' "$packages" | sed 's/^/  - /'; else printf '  - none mapped for %s\n' "$pm"; fi
   script=$(remote_script_json "$env_id" "$domain" || true)
   if [ -n "$script" ]; then
@@ -203,6 +233,9 @@ plan_environment() {
     else
       printf 'artifact:\n  adapter: unimplemented\n'
     fi
+  fi
+  if [ "$strategy" = vendor-repository ]; then
+    plan_vendor_repository "$env_id" "$family" "$pm" || printf 'vendor_repository:\n  adapter: unavailable-for-platform\n'
   fi
   printf 'verification:\n'; verify_lines "$env_id" | sed 's/^/  - /'
   printf 'sources:\n'; source_lines "$env_id" | sed 's/^/  - /'
@@ -316,8 +349,10 @@ install_environment() {
   environment_exists "$env_id" || die "unknown environment: $env_id"
   platform=$(detect_platform); family=$(platform_family "$platform"); arch=$(normalize_arch); domain=$(detect_domain); pm=$(detect_package_manager)
   entry=$(resolve_entry "$env_id" "$platform" "$family")
-  support=$(printf '%s' "$entry" | jq -r '.support'); strategy=$(printf '%s' "$entry" | jq -r '.strategy')
-  if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
+  support=$(printf '%s' "$entry" | jq -r '.support')
+  declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+  strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
+  if ! arch_allowed "$entry" "$arch"; then support=unsupported; declared_strategy=unsupported; strategy=unsupported; fi
   case "$support" in
     unsupported) die "$env_id is unsupported on $platform/$arch" ;;
     target-only) die "$env_id is target-only on $platform; cross-compilation is not a host installation" ;;
@@ -331,11 +366,14 @@ install_environment() {
   case "$strategy" in
     package-manager)
       [ "$pm" != none ] || die "no supported package manager detected"
-      packages=$(package_lines "$env_id" "$pm" || true)
+      packages=$(effective_package_lines "$env_id" "$platform" "$pm" || true)
       [ -n "$packages" ] || die "no package mapping for $env_id using $pm; refusing to guess"
       # Package identifiers in manifests intentionally contain no whitespace except option tokens.
       # shellcheck disable=SC2086
       install_packages "$pm" $packages
+      ;;
+    vendor-repository)
+      install_vendor_repository "$env_id" "$family" "$pm"
       ;;
     official-script)
       install_remote_script "$env_id" "$domain" "$accept_remote"
@@ -375,7 +413,8 @@ list_environments() {
   for env_id in $(jq -r '.environments | keys[]' "$ENV_MANIFEST"); do
     entry=$(resolve_entry "$env_id" "$platform" "$family")
     support=$(printf '%s' "$entry" | jq -r '.support')
-    strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+    declared_strategy=$(printf '%s' "$entry" | jq -r '.strategy')
+    strategy=$(resolve_effective_strategy "$env_id" "$platform" "$family" "$declared_strategy")
     if ! arch_allowed "$entry" "$arch"; then support=unsupported; strategy=unsupported; fi
     if [ "$mode" = supported ]; then
       case "$support" in experimental|unsupported|target-only) continue ;; esac
@@ -409,6 +448,7 @@ doctor() {
   fi
   log "manifest JSON parse: PASS"
   log "artifact manifest JSON parse: PASS"
+  log "repository manifest JSON parse: PASS"
   log "state directory: PASS ($STATE_DIR)"
   log "doctor completed"
 }
