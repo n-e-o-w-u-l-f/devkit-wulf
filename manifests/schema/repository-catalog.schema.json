@@ -150,6 +150,11 @@
           "items": {"$ref": "#/$defs/packageToken"},
           "minItems": 1,
           "uniqueItems": true
+        },
+        "services": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/service"},
+          "uniqueItems": true
         }
       },
       "oneOf": [
