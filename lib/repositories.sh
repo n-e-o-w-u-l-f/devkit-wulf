@@ -20,6 +20,7 @@ native_package_json() {
 }
 
 repository_state_ready() {
+  [ ! -L "$STATE_DIR" ] || die "GATE-10 refuses repository state-directory symlink: $STATE_DIR"
   mkdir -p "$STATE_DIR" || die "unable to create state directory: $STATE_DIR"
   [ -d "$STATE_DIR" ] && [ -w "$STATE_DIR" ] || die "state directory is not writable: $STATE_DIR"
   _dw_repo_state="$STATE_DIR/repositories.jsonl"
@@ -73,11 +74,21 @@ plan_vendor_repository() {
   printf '  repository_signature_required: %s\n' "$(printf '%s' "$_dw_repo_target" | jq -r '.repository_signature_required')"
   printf '  tls_verification_required: %s\n' "$(printf '%s' "$_dw_repo_target" | jq -r '.tls_verification_required')"
   printf '  privilege: required-for-package-and-repository-mutation\n'
-  printf '  conflict_policy: refuse-existing-different-content\n'
+  printf '  conflict_policy: preflight-refuse-existing-different-content\n'
   printf '  prerequisites:\n'
   printf '%s' "$_dw_repo_target" | jq -r '.prerequisites[]' | sed 's/^/    - /'
   printf '  keys:\n'
   printf '%s' "$_dw_repo_target" | jq -r '.keys[] | "    - " + .url + " [" + .transform + "]"'
+}
+
+_repository_gpg_command() {
+  if have gpg; then
+    printf gpg
+  elif have gpg2; then
+    printf gpg2
+  else
+    return 1
+  fi
 }
 
 _repository_stage_key() {
@@ -90,13 +101,16 @@ _repository_stage_key() {
   _dw_repo_staged="$_dw_repo_tmpdir/key-$_dw_repo_index.staged"
   download_https "$_dw_repo_url" "$_dw_repo_raw"
   [ -s "$_dw_repo_raw" ] || die "GATE-04 downloaded empty repository key: $_dw_repo_url"
+
+  _dw_repo_gpg=$(_repository_gpg_command) || die "GATE-05 requires GnuPG to inspect repository key material before mutation"
+  "$_dw_repo_gpg" --no-tty --batch --show-keys "$_dw_repo_raw" >/dev/null 2>&1 || die "GATE-05 rejected invalid OpenPGP key material from $_dw_repo_url"
+
   case "$_dw_repo_transform" in
     copy)
       cp "$_dw_repo_raw" "$_dw_repo_staged"
       ;;
     gpg-dearmor)
-      have gpg || die "GATE-05 requires gpg for repository key dearmor"
-      gpg --no-tty --batch --dearmor --output "$_dw_repo_staged" "$_dw_repo_raw" || die "GATE-05 failed to dearmor repository key"
+      "$_dw_repo_gpg" --no-tty --batch --dearmor --output "$_dw_repo_staged" "$_dw_repo_raw" || die "GATE-05 failed to dearmor repository key"
       ;;
     repository-key)
       cp "$_dw_repo_raw" "$_dw_repo_staged"
@@ -110,6 +124,19 @@ _repository_stage_key() {
   printf '%s|%s|%s|%s\n' "$_dw_repo_url" "$_dw_repo_transform" "$_dw_repo_staged" "$_dw_repo_hash"
 }
 
+_repository_preflight_file() {
+  _dw_repo_source=$1
+  _dw_repo_destination=$2
+  [ ! -L "$_dw_repo_destination" ] || die "GATE-08 refuses symlink destination: $_dw_repo_destination"
+  if [ -e "$_dw_repo_destination" ]; then
+    [ -f "$_dw_repo_destination" ] || die "GATE-08 destination is not a regular file: $_dw_repo_destination"
+    _dw_repo_new_hash=$(sha256_file "$_dw_repo_source")
+    _dw_repo_existing_hash=$(sha256_file "$_dw_repo_destination")
+    [ "$_dw_repo_new_hash" != unavailable ] && [ "$_dw_repo_existing_hash" != unavailable ] || die "GATE-05 requires local SHA-256 support"
+    [ "$_dw_repo_existing_hash" = "$_dw_repo_new_hash" ] || die "GATE-08 conflict: $_dw_repo_destination differs from researched repository content"
+  fi
+}
+
 _repository_install_file() {
   _dw_repo_env=$1
   _dw_repo_target_name=$2
@@ -118,18 +145,13 @@ _repository_install_file() {
   _dw_repo_source_url=$5
   _dw_repo_mode=$6
 
-  [ ! -L "$_dw_repo_destination" ] || die "GATE-08 refuses symlink destination: $_dw_repo_destination"
+  _repository_preflight_file "$_dw_repo_source" "$_dw_repo_destination"
   _dw_repo_new_hash=$(sha256_file "$_dw_repo_source")
   [ "$_dw_repo_new_hash" != unavailable ] || die "GATE-05 requires local SHA-256 support"
 
   if [ -e "$_dw_repo_destination" ]; then
-    [ -f "$_dw_repo_destination" ] || die "GATE-08 destination is not a regular file: $_dw_repo_destination"
-    _dw_repo_existing_hash=$(sha256_file "$_dw_repo_destination")
-    if [ "$_dw_repo_existing_hash" = "$_dw_repo_new_hash" ]; then
-      record_repository_state "$_dw_repo_env" "$_dw_repo_target_name" observed-exact-resource "$_dw_repo_destination" "$_dw_repo_source_url" "$_dw_repo_new_hash" false
-      return 0
-    fi
-    die "GATE-08 conflict: $_dw_repo_destination differs from researched repository content"
+    record_repository_state "$_dw_repo_env" "$_dw_repo_target_name" observed-exact-resource "$_dw_repo_destination" "$_dw_repo_source_url" "$_dw_repo_new_hash" false
+    return 0
   fi
 
   record_repository_state "$_dw_repo_env" "$_dw_repo_target_name" mutation-intent "$_dw_repo_destination" "$_dw_repo_source_url" "$_dw_repo_new_hash" true
@@ -151,9 +173,52 @@ install_vendor_repository() (
   [ "$(printf '%s' "$_dw_repo_target" | jq -r '.tls_verification_required')" = true ] || die "GATE-04 refuses repository with TLS verification disabled"
   [ "$(printf '%s' "$_dw_repo_target" | jq -r '.package_signature_required')" = true ] || die "GATE-05 refuses repository without package signature verification"
 
-  repository_state_ready
   _dw_repo_tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-repository.XXXXXX") || die "unable to create repository staging directory"
   trap 'rm -rf "$_dw_repo_tmpdir"' EXIT HUP INT TERM
+
+  # Stage and validate all remotely supplied key material before any package or
+  # repository mutation. This makes GATE-08 conflict checks precede GATE-11.
+  _dw_repo_staged_keys="$_dw_repo_tmpdir/keys.tsv"
+  : > "$_dw_repo_staged_keys"
+  _dw_repo_key_index=0
+  while IFS= read -r _dw_repo_key; do
+    [ -n "$_dw_repo_key" ] || continue
+    _dw_repo_key_index=$((_dw_repo_key_index + 1))
+    _dw_repo_stage=$(_repository_stage_key "$_dw_repo_key" "$_dw_repo_tmpdir" "$_dw_repo_key_index")
+    _dw_repo_key_url=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 1)
+    _dw_repo_key_transform=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 2)
+    _dw_repo_key_file=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 3)
+    _dw_repo_key_hash=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 4)
+    _dw_repo_key_destination=$(printf '%s' "$_dw_repo_key" | jq -r '.destination // empty')
+    if [ -n "$_dw_repo_key_destination" ]; then
+      _repository_preflight_file "$_dw_repo_key_file" "$_dw_repo_key_destination"
+    elif [ "$_dw_repo_key_transform" != repository-key ]; then
+      die "repository key without destination must use repository-key transform"
+    fi
+    printf '%s|%s|%s|%s|%s\n' "$_dw_repo_key_url" "$_dw_repo_key_transform" "$_dw_repo_key_file" "$_dw_repo_key_hash" "$_dw_repo_key_destination" >> "$_dw_repo_staged_keys"
+  done <<EOF
+$(printf '%s' "$_dw_repo_target" | jq -c '.keys[]')
+EOF
+
+  _dw_repo_key_dir=$(printf '%s' "$_dw_repo_target" | jq -r '.key_directory // empty')
+  if [ -n "$_dw_repo_key_dir" ]; then
+    [ ! -L "$_dw_repo_key_dir" ] || die "GATE-08 refuses symlink key directory: $_dw_repo_key_dir"
+    if [ -e "$_dw_repo_key_dir" ]; then
+      [ -d "$_dw_repo_key_dir" ] || die "GATE-08 key directory path is not a directory: $_dw_repo_key_dir"
+    fi
+  fi
+
+  _dw_repo_repo_file=$(printf '%s' "$_dw_repo_target" | jq -r '.repository_file')
+  _dw_repo_parent=$(dirname "$_dw_repo_repo_file")
+  [ -d "$_dw_repo_parent" ] || die "GATE-08 repository directory does not exist: $_dw_repo_parent"
+  [ ! -L "$_dw_repo_parent" ] || die "GATE-08 refuses symlink repository directory: $_dw_repo_parent"
+  _dw_repo_staged_repo="$_dw_repo_tmpdir/repository.conf"
+  printf '%s' "$_dw_repo_target" | jq -r '.repository_content' > "$_dw_repo_staged_repo"
+  _repository_preflight_file "$_dw_repo_staged_repo" "$_dw_repo_repo_file"
+
+  # All remotely supplied content and managed destinations have now passed the
+  # non-mutating trust/conflict gates. State and host mutation may begin.
+  repository_state_ready
 
   _dw_repo_prereqs=$(printf '%s' "$_dw_repo_target" | jq -r '.prerequisites[]?')
   if [ -n "$_dw_repo_prereqs" ]; then
@@ -163,40 +228,23 @@ install_vendor_repository() (
     install_packages "$_dw_repo_expected_pm" $_dw_repo_prereqs
   fi
 
-  _dw_repo_key_dir=$(printf '%s' "$_dw_repo_target" | jq -r '.key_directory // empty')
-  if [ -n "$_dw_repo_key_dir" ]; then
-    [ ! -L "$_dw_repo_key_dir" ] || die "GATE-08 refuses symlink key directory: $_dw_repo_key_dir"
-    if [ ! -d "$_dw_repo_key_dir" ]; then
-      record_repository_state "$_dw_repo_env" "$_dw_repo_family" mutation-intent "$_dw_repo_key_dir" directory "" true
-      privileged install -d -m 0755 "$_dw_repo_key_dir"
-      record_repository_state "$_dw_repo_env" "$_dw_repo_family" installed-directory "$_dw_repo_key_dir" directory "" true
-    fi
+  if [ -n "$_dw_repo_key_dir" ] && [ ! -d "$_dw_repo_key_dir" ]; then
+    record_repository_state "$_dw_repo_env" "$_dw_repo_family" mutation-intent "$_dw_repo_key_dir" directory "" true
+    privileged install -d -m 0755 "$_dw_repo_key_dir"
+    record_repository_state "$_dw_repo_env" "$_dw_repo_family" installed-directory "$_dw_repo_key_dir" directory "" true
   fi
 
-  _dw_repo_key_index=0
-  printf '%s' "$_dw_repo_target" | jq -c '.keys[]' | while IFS= read -r _dw_repo_key; do
-    _dw_repo_key_index=$((_dw_repo_key_index + 1))
-    _dw_repo_stage=$(_repository_stage_key "$_dw_repo_key" "$_dw_repo_tmpdir" "$_dw_repo_key_index")
-    _dw_repo_key_url=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 1)
-    _dw_repo_key_transform=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 2)
-    _dw_repo_key_file=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 3)
-    _dw_repo_key_hash=$(printf '%s' "$_dw_repo_stage" | cut -d '|' -f 4)
+  while IFS='|' read -r _dw_repo_key_url _dw_repo_key_transform _dw_repo_key_file _dw_repo_key_hash _dw_repo_key_destination; do
+    [ -n "$_dw_repo_key_url" ] || continue
     log "GATE-04 repository key source: $_dw_repo_key_url"
-    log "GATE-05 repository key SHA-256: $_dw_repo_key_hash"
-    _dw_repo_key_destination=$(printf '%s' "$_dw_repo_key" | jq -r '.destination // empty')
+    log "GATE-05 repository key material parsed; observed SHA-256: $_dw_repo_key_hash"
     if [ -n "$_dw_repo_key_destination" ]; then
       _repository_install_file "$_dw_repo_env" "$_dw_repo_family" "$_dw_repo_key_file" "$_dw_repo_key_destination" "$_dw_repo_key_url" 0644
-    elif [ "$_dw_repo_key_transform" != repository-key ]; then
-      die "repository key without destination must use repository-key transform"
+    else
+      record_repository_state "$_dw_repo_env" "$_dw_repo_family" observed-repository-key repository-key "$_dw_repo_key_url" "$_dw_repo_key_hash" false
     fi
-  done
+  done < "$_dw_repo_staged_keys"
 
-  _dw_repo_repo_file=$(printf '%s' "$_dw_repo_target" | jq -r '.repository_file')
-  _dw_repo_parent=$(dirname "$_dw_repo_repo_file")
-  [ -d "$_dw_repo_parent" ] || die "GATE-08 repository directory does not exist: $_dw_repo_parent"
-  [ ! -L "$_dw_repo_parent" ] || die "GATE-08 refuses symlink repository directory: $_dw_repo_parent"
-  _dw_repo_staged_repo="$_dw_repo_tmpdir/repository.conf"
-  printf '%s' "$_dw_repo_target" | jq -r '.repository_content' > "$_dw_repo_staged_repo"
   _repository_install_file "$_dw_repo_env" "$_dw_repo_family" "$_dw_repo_staged_repo" "$_dw_repo_repo_file" "$(printf '%s' "$_dw_repo_target" | jq -r '.documentation')" 0644
 
   case "$_dw_repo_expected_pm" in
