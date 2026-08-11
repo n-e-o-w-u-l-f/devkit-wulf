@@ -53,28 +53,36 @@ EOF
 # Offline OpenPGP fixture parser. Production still requires real gpg/gpg2.
 cat > "$TEST_ROOT/bin/gpg" <<'EOF'
 #!/bin/sh
-case " $* " in
-  *" --with-colons "*" --show-keys "*)
-    printf 'fpr:::::::::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:\n'
-    exit 0
-    ;;
-  *" --dearmor "*)
-    output=
-    input=
-    previous=
-    for arg in "$@"; do
-      if [ "$previous" = --output ]; then output=$arg; previous=; continue; fi
-      if [ "$arg" = --output ]; then previous=--output; continue; fi
-      input=$arg
-    done
-    cp "$input" "$output"
-    exit 0
-    ;;
-  *)
-    echo "unexpected fixture gpg invocation: $*" >&2
-    exit 92
-    ;;
-esac
+show_keys=false
+dearmor=false
+output=
+input=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --show-keys) show_keys=true ;;
+    --dearmor) dearmor=true ;;
+    --output)
+      shift
+      [ "$#" -gt 0 ] || exit 93
+      output=$1
+      ;;
+    --no-tty|--batch|--with-colons) ;;
+    *) input=$1 ;;
+  esac
+  shift
+done
+if [ "$show_keys" = true ]; then
+  [ -n "$input" ] || exit 94
+  printf 'fpr:::::::::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:\n'
+  exit 0
+fi
+if [ "$dearmor" = true ]; then
+  [ -n "$input" ] && [ -n "$output" ] || exit 95
+  cp "$input" "$output"
+  exit 0
+fi
+echo "unexpected fixture gpg invocation" >&2
+exit 92
 EOF
 
 chmod 0755 "$TEST_ROOT/bin/"*
