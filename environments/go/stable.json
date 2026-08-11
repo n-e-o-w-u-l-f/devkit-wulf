@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "environment": "go",
+  "selector": "go@stable",
+  "research_date": "2026-08-11",
+  "artifact_manifest": "manifests/go-artifact.json",
+  "policy": {
+    "support": "experimental",
+    "no_path_mutation": true,
+    "no_privilege": true,
+    "automatic_upgrade": false
+  },
+  "verification": {
+    "managed_artifact_required": true,
+    "critical_hashes_required": true,
+    "runtime_smoke_required": true
+  },
+  "adapters": {
+    "linux-native": {
+      "support": "experimental",
+      "strategy": "verified-artifact-helper",
+      "artifact_platform": "linux",
+      "architectures": ["amd64", "arm64", "riscv64", "ppc64le", "s390x"],
+      "helper": "lib/go-artifact.sh",
+      "entrypoint": "installers/linux/environments/go-stable.sh"
+    },
+    "wsl2-linux": {
+      "support": "experimental",
+      "strategy": "verified-artifact-helper",
+      "artifact_platform": "linux",
+      "architectures": ["amd64", "arm64", "riscv64", "ppc64le", "s390x"],
+      "helper": "lib/go-artifact.sh",
+      "entrypoint": "installers/wsl/environments/go-stable.sh"
+    },
+    "macos-native": {
+      "support": "experimental",
+      "strategy": "verified-artifact-helper",
+      "artifact_platform": "macos",
+      "architectures": ["amd64", "arm64"],
+      "helper": "lib/go-artifact.sh",
+      "entrypoint": "installers/macos/environments/go-stable.sh"
+    },
+    "windows-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The currently verified Go artifact contract does not contain a Windows target; a native Windows archive adapter requires its own reviewed contract."
+    },
+    "bsd-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The currently verified Go artifact contract does not contain BSD host artifacts and does not infer installer support from Go cross-compilation targets."
+    },
+    "solaris-illumos-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The currently verified Go artifact contract does not contain Solaris or illumos host artifacts for this selector."
+    },
+    "aix-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The currently verified Go artifact contract does not contain an AIX host artifact for this selector."
+    }
+  }
+}
