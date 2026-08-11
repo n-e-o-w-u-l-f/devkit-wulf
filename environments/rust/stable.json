@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "environment": "rust",
+  "selector": "rust@stable",
+  "research_date": "2026-08-11",
+  "artifact_manifest": "manifests/rustup-artifact.json",
+  "policy": {
+    "support": "experimental",
+    "no_path_mutation": true,
+    "no_privilege": true,
+    "automatic_upgrade": false
+  },
+  "verification": {
+    "managed_artifact_required": true,
+    "critical_hashes_required": true,
+    "runtime_smoke_required": true
+  },
+  "adapters": {
+    "linux-native": {
+      "support": "experimental",
+      "strategy": "verified-artifact-helper",
+      "artifact_platform": "linux",
+      "architectures": ["amd64", "arm64"],
+      "helper": "lib/rustup-artifact.sh",
+      "entrypoint": "installers/linux/environments/rust-stable.sh"
+    },
+    "wsl2-linux": {
+      "support": "experimental",
+      "strategy": "verified-artifact-helper",
+      "artifact_platform": "linux",
+      "architectures": ["amd64", "arm64"],
+      "helper": "lib/rustup-artifact.sh",
+      "entrypoint": "installers/wsl/environments/rust-stable.sh"
+    },
+    "macos-native": {
+      "support": "experimental",
+      "strategy": "verified-artifact-helper",
+      "artifact_platform": "macos",
+      "architectures": ["amd64", "arm64"],
+      "helper": "lib/rustup-artifact.sh",
+      "entrypoint": "installers/macos/environments/rust-stable.sh"
+    },
+    "windows-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The currently reviewed rustup artifact contract contains Linux and macOS binaries only; Windows requires a separate native PowerShell artifact contract."
+    },
+    "bsd-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The current verified rustup-init contract does not include BSD host binaries and does not infer host support from Rust compiler targets."
+    },
+    "solaris-illumos-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The current verified rustup-init contract does not include Solaris or illumos host binaries for this selector."
+    },
+    "aix-native": {
+      "support": "unsupported",
+      "strategy": "unsupported",
+      "reason": "The current verified rustup-init contract does not include an AIX host binary for this selector."
+    }
+  }
+}
