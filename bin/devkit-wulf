@@ -351,7 +351,10 @@ verify_environment() {
   if [ "$env_id" = dotnet ]; then
     platform=$(detect_platform); arch=$(normalize_arch); pm=$(detect_package_manager); version=$(detect_version)
     if [ -n "$(dotnet_linux_target_json "$platform" || true)" ]; then
-      dotnet_linux_validate_target "$platform" "$version" "$arch" "$pm"
+      if ! dotnet_linux_target_compatible "$platform" "$version" "$arch" "$pm"; then
+        warn ".NET 10 target is not compatible with $platform/$version/$arch using $pm"
+        return 1
+      fi
       printf '[verify] dotnet --list-sdks contains 10.x\n'
       if dotnet_linux_verify; then return 0; fi
       warn ".NET 10 SDK verification failed"
@@ -372,7 +375,13 @@ EOF
 
 record_state() {
   env_id=$1 strategy=$2 platform=$3 arch=$4 domain=$5 action=$6
-  mkdir -p "$STATE_DIR"
+  [ ! -L "$STATE_DIR" ] || die "GATE-10 refuses state-directory symlink: $STATE_DIR"
+  mkdir -p "$STATE_DIR" || die "unable to create state directory: $STATE_DIR"
+  [ ! -L "$STATE_FILE" ] || die "GATE-10 refuses state-file symlink: $STATE_FILE"
+  if [ -e "$STATE_FILE" ]; then
+    [ -f "$STATE_FILE" ] || die "GATE-10 state path is not a regular file: $STATE_FILE"
+    [ -w "$STATE_FILE" ] || die "GATE-10 state file is not writable: $STATE_FILE"
+  fi
   timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   jq -nc --arg t "$timestamp" --arg e "$env_id" --arg s "$strategy" --arg p "$platform" --arg a "$arch" --arg d "$domain" --arg x "$action" \
     '{timestamp:$t,environment:$e,strategy:$s,platform:$p,architecture:$a,domain:$d,action:$x}' >> "$STATE_FILE"
@@ -484,6 +493,7 @@ doctor() {
   platform=$(detect_platform); domain=$(detect_domain); pm=$(detect_package_manager)
   [ "$platform" != unknown ] || die "host platform could not be identified"
   [ "$pm" != none ] || warn "no known package manager detected; only dedicated non-package strategies can run"
+  [ ! -L "$STATE_DIR" ] || die "GATE-10 refuses state-directory symlink: $STATE_DIR"
   mkdir -p "$STATE_DIR" 2>/dev/null || die "state directory is not writable: $STATE_DIR"
   [ -w "$STATE_DIR" ] || die "state directory is not writable: $STATE_DIR"
   if [ "$domain" = wsl2 ]; then
