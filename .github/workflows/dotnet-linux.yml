@@ -1,0 +1,59 @@
+name: dotnet-linux
+
+on:
+  pull_request:
+    paths:
+      - 'lib/dotnet-linux.sh'
+      - 'manifests/dotnet-linux.json'
+      - 'manifests/schema/dotnet-linux.schema.json'
+      - 'tests/test_dotnet_linux.sh'
+      - 'tests/validate_dotnet_linux.py'
+      - 'docs/environments/dotnet-linux.md'
+      - '.github/workflows/dotnet-linux.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/dotnet-linux.sh'
+      - 'manifests/dotnet-linux.json'
+      - 'manifests/schema/dotnet-linux.schema.json'
+      - 'tests/test_dotnet_linux.sh'
+      - 'tests/validate_dotnet_linux.py'
+      - '.github/workflows/dotnet-linux.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate semantic contract
+        run: python tests/validate_dotnet_linux.py
+      - name: Validate JSON Schema
+        run: |
+          python -m pip install --disable-pip-version-check jsonschema
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          schema = json.loads(Path('manifests/schema/dotnet-linux.schema.json').read_text())
+          catalog = json.loads(Path('manifests/dotnet-linux.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(catalog)
+          print('.NET Linux JSON Schema validation passed')
+          PY
+
+  offline-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test tools
+        run: sudo apt-get update && sudo apt-get install -y jq shellcheck
+      - name: ShellCheck
+        run: shellcheck lib/dotnet-linux.sh tests/test_dotnet_linux.sh
+      - name: Offline adapter tests
+        run: sh tests/test_dotnet_linux.sh
