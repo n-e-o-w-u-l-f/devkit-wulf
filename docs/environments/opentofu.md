@@ -75,20 +75,30 @@ OpenTofu also publishes standalone release archives for Linux, macOS, Windows an
 
 The standalone path is intentionally not considered complete merely because a ZIP checksum can be compared. Because upstream provides cryptographic authentication for the checksum set, the future standalone adapter must verify that higher-level signature as well and must never expose the upstream skip-verification option.
 
+## Trust-tool preflight
+
+The vendor-repository path deliberately requires `gpg` or `gpg2` to be available **before any repository or package mutation begins**.
+
+Although the upstream setup lists GnuPG among its prerequisites, `devkit-wulf` does not install that trust tool after downloading repository key material and then continue automatically. The downloaded OpenPGP material is parsed first, all managed destinations are conflict-checked, and only then may repository/package mutations start.
+
+On a minimal host without GnuPG, the adapter therefore fails closed and asks the operator to establish the base/trust tooling first. This preserves the GATE-04/GATE-05/GATE-08 ordering rather than weakening it for convenience.
+
 ## Repository adapter safety contract
 
 The vendor-repository helper introduced for this environment follows these rules:
 
 1. all documentation, package and key origins are manifest-controlled;
 2. key URLs must use HTTPS;
-3. repository configuration is written from exact manifest content, not assembled from user-controlled shell fragments;
-4. existing different repository/key files are conflicts and are not overwritten;
-5. symlink destinations are rejected;
-6. repository state is recorded before and after owned mutations;
-7. package signatures remain enabled;
-8. TLS verification remains enabled;
-9. no `--skip-verify`, insecure TLS option or generic trust bypass is introduced;
-10. environment verification still requires `tofu -version` after package installation.
+3. downloaded OpenPGP key material must parse successfully before host mutation;
+4. all managed key/repository destinations are conflict-checked before prerequisite/package mutation;
+5. repository configuration is written from exact manifest content, not assembled from user-controlled shell fragments;
+6. existing different repository/key files are conflicts and are not overwritten;
+7. symlink destinations and repository-state symlinks are rejected;
+8. repository state records mutation intent and post-mutation results;
+9. package signatures remain enabled;
+10. TLS verification remains enabled;
+11. no `--skip-verify`, insecure TLS option or generic trust bypass is introduced;
+12. environment verification still requires `tofu -version` after package installation.
 
 ## Strategy resolution
 
@@ -125,12 +135,14 @@ Current effective Linux resolution:
 The branch includes:
 
 - repository JSON Schema validation;
-- semantic policy validation;
+- cross-manifest semantic policy validation;
 - isolated no-network/no-root repository helper tests;
+- conflict-before-mutation assertions;
+- state-file and state-directory symlink refusal tests;
 - portable CLI strategy-resolution checks;
 - ShellCheck/security-scan inclusion through the existing `lib/*.sh` CI scope.
 
-Hosted GitHub Actions remain subject to the repository account's external runner/billing availability. A successful local or fixture test does not promote support by itself.
+Hosted GitHub Actions remain subject to the repository account's external runner/billing availability. A successful fixture test does not promote support by itself.
 
 ## Upstream references
 
