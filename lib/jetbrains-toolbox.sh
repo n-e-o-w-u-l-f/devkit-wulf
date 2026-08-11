@@ -37,9 +37,7 @@ jetbrains_toolbox_url_allowed() {
   case "$_dw_jb_url" in https://*) ;; *) return 1 ;; esac
   while IFS= read -r _dw_jb_host; do
     [ -n "$_dw_jb_host" ] || continue
-    case "$_dw_jb_url" in
-      "https://$_dw_jb_host/"*) return 0 ;;
-    esac
+    case "$_dw_jb_url" in "https://$_dw_jb_host/"*) return 0 ;; esac
   done <<EOF
 $(jq -r '.allowed_download_hosts[]' "$JETBRAINS_TOOLBOX_MANIFEST")
 EOF
@@ -140,27 +138,48 @@ jetbrains_toolbox_archive_safe() {
   grep -Fxq "$_dw_jb_root/$_dw_jb_exec" "$_dw_jb_listing"
 }
 
+jetbrains_toolbox_marker_integrity() {
+  _dw_jb_marker=$1
+  _dw_jb_destination=$2
+  [ -f "$_dw_jb_marker" ] && [ ! -L "$_dw_jb_marker" ] || return 1
+  [ -f "$_dw_jb_destination" ] && [ ! -L "$_dw_jb_destination" ] && [ -x "$_dw_jb_destination" ] || return 1
+  _dw_jb_current_sha=$(sha256_file "$_dw_jb_destination")
+  [ "$_dw_jb_current_sha" != unavailable ] || return 1
+  _dw_jb_version=$(jq -r '.version // empty' "$_dw_jb_marker" 2>/dev/null) || return 1
+  jetbrains_toolbox_validate_version "$_dw_jb_version" || return 1
+  jq -e --arg executable_sha "$_dw_jb_current_sha" '
+    .environment == "jetbrains" and
+    .publisher == "JetBrains s.r.o." and
+    (.source_url | type == "string") and
+    (.archive_sha256 | test("^[0-9a-fA-F]{64}$")) and
+    .executable_sha256 == $executable_sha
+  ' "$_dw_jb_marker" >/dev/null 2>&1
+}
+
 jetbrains_toolbox_marker_matches() {
   _dw_jb_marker=$1
   _dw_jb_destination=$2
   _dw_jb_version=$3
   _dw_jb_source=$4
   _dw_jb_archive_sha=$5
-  [ -f "$_dw_jb_marker" ] && [ ! -L "$_dw_jb_marker" ] || return 1
-  [ -f "$_dw_jb_destination" ] && [ ! -L "$_dw_jb_destination" ] || return 1
-  _dw_jb_current_sha=$(sha256_file "$_dw_jb_destination")
-  [ "$_dw_jb_current_sha" != unavailable ] || return 1
+  jetbrains_toolbox_marker_integrity "$_dw_jb_marker" "$_dw_jb_destination" || return 1
   jq -e \
     --arg version "$_dw_jb_version" \
     --arg source "$_dw_jb_source" \
-    --arg archive_sha "$_dw_jb_archive_sha" \
-    --arg executable_sha "$_dw_jb_current_sha" '
-      .environment == "jetbrains" and
-      .version == $version and
-      .source_url == $source and
-      .archive_sha256 == $archive_sha and
-      .executable_sha256 == $executable_sha
+    --arg archive_sha "$_dw_jb_archive_sha" '
+      .version == $version and .source_url == $source and .archive_sha256 == $archive_sha
     ' "$_dw_jb_marker" >/dev/null 2>&1
+}
+
+verify_jetbrains_toolbox() {
+  _dw_jb_arch=$1
+  _dw_jb_target=$(jetbrains_toolbox_target_json "$_dw_jb_arch")
+  [ -n "$_dw_jb_target" ] || return 1
+  _dw_jb_destination=$(jetbrains_toolbox_expand_home "$(printf '%s' "$_dw_jb_target" | jq -r '.destination_template')") || return 1
+  _dw_jb_marker=$(jetbrains_toolbox_expand_home "$(printf '%s' "$_dw_jb_target" | jq -r '.marker_template')") || return 1
+  jetbrains_toolbox_marker_integrity "$_dw_jb_marker" "$_dw_jb_destination" || return 1
+  _dw_jb_output=$("$_dw_jb_destination" --version 2>&1) || return 1
+  [ -n "$_dw_jb_output" ]
 }
 
 plan_jetbrains_toolbox() {
@@ -185,9 +204,25 @@ plan_jetbrains_toolbox() {
   printf '  conflict_policy: refuse-unowned-existing-binary-or-marker\n'
 }
 
+jetbrains_toolbox_cleanup_install() {
+  [ -n "${_dw_jb_marker_tmp:-}" ] && rm -f "$_dw_jb_marker_tmp"
+  if [ -n "${_dw_jb_tmpdir:-}" ]; then
+    [ -n "${_dw_jb_staged_exec:-}" ] && rm -f "$_dw_jb_staged_exec"
+    [ -n "${_dw_jb_root:-}" ] && [ -n "${_dw_jb_extract:-}" ] && rmdir "$_dw_jb_extract/$_dw_jb_root" 2>/dev/null || true
+    [ -n "${_dw_jb_extract:-}" ] && rmdir "$_dw_jb_extract" 2>/dev/null || true
+    rm -f "$_dw_jb_tmpdir/toolbox.tar.gz" "$_dw_jb_tmpdir/toolbox.sha256" "$_dw_jb_tmpdir/archive.list"
+    rmdir "$_dw_jb_tmpdir" 2>/dev/null || true
+  fi
+}
+
 install_jetbrains_toolbox() (
   set -eu
   _dw_jb_arch=$1
+  _dw_jb_marker_tmp=
+  _dw_jb_staged_exec=
+  _dw_jb_tmpdir=
+  _dw_jb_extract=
+  _dw_jb_root=
   _dw_jb_target=$(jetbrains_toolbox_target_json "$_dw_jb_arch")
   [ -n "$_dw_jb_target" ] || die "no JetBrains Toolbox artifact mapping for Linux/$_dw_jb_arch"
   _dw_jb_destination=$(jetbrains_toolbox_expand_home "$(printf '%s' "$_dw_jb_target" | jq -r '.destination_template')") || die "invalid JetBrains Toolbox destination/HOME"
@@ -207,7 +242,7 @@ install_jetbrains_toolbox() (
   _dw_jb_root=$(printf '%s' "$_dw_jb_release" | jq -r '.root_directory')
 
   _dw_jb_tmpdir=$(mktemp -d "$_dw_jb_path/.devkit-wulf-jetbrains.XXXXXX") || die "unable to create JetBrains Toolbox staging directory"
-  trap 'rm -rf "$_dw_jb_tmpdir"' EXIT HUP INT TERM
+  trap 'jetbrains_toolbox_cleanup_install' EXIT HUP INT TERM
   _dw_jb_archive="$_dw_jb_tmpdir/toolbox.tar.gz"
   _dw_jb_checksum_file="$_dw_jb_tmpdir/toolbox.sha256"
   _dw_jb_listing="$_dw_jb_tmpdir/archive.list"
@@ -229,6 +264,9 @@ install_jetbrains_toolbox() (
     if jetbrains_toolbox_marker_matches "$_dw_jb_marker" "$_dw_jb_destination" "$_dw_jb_version" "$_dw_jb_source" "$_dw_jb_actual"; then
       _dw_jb_exec_sha=$(sha256_file "$_dw_jb_destination")
       jetbrains_toolbox_record_state observed-exact-artifact "$_dw_jb_version" "$_dw_jb_source" "$_dw_jb_checksum" "$_dw_jb_destination" "$_dw_jb_actual" "$_dw_jb_exec_sha" false
+      jetbrains_toolbox_cleanup_install
+      _dw_jb_tmpdir=
+      trap - EXIT HUP INT TERM
       exit 0
     fi
     die "GATE-08 existing JetBrains Toolbox binary/marker is not the exact devkit-wulf-managed release"
@@ -254,5 +292,10 @@ install_jetbrains_toolbox() (
     '{environment:"jetbrains",publisher:"JetBrains s.r.o.",version:$version,source_url:$source_url,archive_sha256:$archive_sha256,executable_sha256:$executable_sha256}' \
     > "$_dw_jb_marker_tmp"
   mv "$_dw_jb_marker_tmp" "$_dw_jb_marker" || die "failed to place JetBrains Toolbox ownership marker"
+  _dw_jb_marker_tmp=
+  verify_jetbrains_toolbox "$_dw_jb_arch" || die "GATE-12 installed JetBrains Toolbox managed verification failed"
   jetbrains_toolbox_record_state installed-verified-artifact "$_dw_jb_version" "$_dw_jb_source" "$_dw_jb_checksum" "$_dw_jb_destination" "$_dw_jb_actual" "$_dw_jb_exec_sha" true
+  jetbrains_toolbox_cleanup_install
+  _dw_jb_tmpdir=
+  trap - EXIT HUP INT TERM
 )
