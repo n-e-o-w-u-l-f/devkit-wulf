@@ -21,4 +21,7 @@ SCRIPT_DIR=$(CDPATH= cd -P "$(dirname "$0")" && pwd)
 LINUX_ADAPTER=$(CDPATH= cd -P "$SCRIPT_DIR/../../linux/environments" && pwd)/python-3.12.sh
 [ -x "$LINUX_ADAPTER" ] || fail "Shared Ubuntu Linux Python 3.12 adapter is missing or not executable: $LINUX_ADAPTER"
 
-DEVKIT_WULF_ALLOW_WSL=1 DEVKIT_WULF_REQUIRE_WSL=1 exec "$LINUX_ADAPTER" "${1:-plan}"
+if [ "$#" -eq 0 ]; then
+    set -- plan
+fi
+DEVKIT_WULF_ALLOW_WSL=1 DEVKIT_WULF_REQUIRE_WSL=1 exec "$LINUX_ADAPTER" "$@"
