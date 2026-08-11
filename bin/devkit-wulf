@@ -8,6 +8,7 @@ PLATFORM_MANIFEST="$ROOT_DIR/manifests/platforms.json"
 PROFILE_MANIFEST="$ROOT_DIR/profiles/profiles.json"
 ARTIFACT_MANIFEST=${DEVKIT_WULF_ARTIFACT_MANIFEST:-"$ROOT_DIR/manifests/artifacts.json"}
 REPOSITORY_MANIFEST=${DEVKIT_WULF_REPOSITORY_MANIFEST:-"$ROOT_DIR/manifests/repositories.json"}
+DOTNET_LINUX_MANIFEST=${DEVKIT_WULF_DOTNET_LINUX_MANIFEST:-"$ROOT_DIR/manifests/dotnet-linux.json"}
 STATE_DIR=${DEVKIT_WULF_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/devkit-wulf}
 STATE_FILE="$STATE_DIR/state.jsonl"
 
@@ -15,6 +16,8 @@ STATE_FILE="$STATE_DIR/state.jsonl"
 . "$ROOT_DIR/lib/artifacts.sh"
 # shellcheck source=../lib/repositories.sh
 . "$ROOT_DIR/lib/repositories.sh"
+# shellcheck source=../lib/dotnet-linux.sh
+. "$ROOT_DIR/lib/dotnet-linux.sh"
 
 log() { printf '%s\n' "[devkit-wulf] $*"; }
 warn() { printf '%s\n' "[devkit-wulf] WARNING: $*" >&2; }
@@ -28,6 +31,7 @@ require_jq() {
   jq -e . "$PROFILE_MANIFEST" >/dev/null || die "profile manifest is invalid JSON"
   jq -e . "$ARTIFACT_MANIFEST" >/dev/null || die "artifact manifest is invalid JSON"
   jq -e . "$REPOSITORY_MANIFEST" >/dev/null || die "repository manifest is invalid JSON"
+  jq -e . "$DOTNET_LINUX_MANIFEST" >/dev/null || die ".NET Linux manifest is invalid JSON"
 }
 
 normalize_arch() {
@@ -181,6 +185,18 @@ effective_package_lines() {
 
 resolve_effective_strategy() {
   env_id=$1 platform=$2 family=$3 declared=$4
+  if [ "$env_id" = dotnet ]; then
+    if [ -n "$(dotnet_linux_target_json "$platform" || true)" ]; then
+      printf dotnet-linux
+      return 0
+    fi
+    case "$family" in
+      debian|fedora|rhel|opensuse)
+        printf manual
+        return 0
+        ;;
+    esac
+  fi
   if [ "$declared" = manual ]; then
     if [ -n "$(repository_target_json "$env_id" "$platform" "$family" || true)" ]; then
       printf vendor-repository
@@ -239,7 +255,9 @@ plan_environment() {
       printf 'artifact:\n  adapter: unimplemented\n'
     fi
   fi
-  if [ "$strategy" = vendor-repository ]; then
+  if [ "$strategy" = dotnet-linux ]; then
+    dotnet_linux_plan "$platform" "$version" "$arch" "$pm"
+  elif [ "$strategy" = vendor-repository ]; then
     plan_vendor_repository "$env_id" "$platform" "$family" "$pm" "$arch" "$version" || printf 'vendor_repository:\n  adapter: unavailable-for-platform\n'
   elif [ "$strategy" = package-manager ] && [ -n "$(native_package_json "$env_id" "$platform" || true)" ]; then
     plan_native_package "$env_id" "$platform" "$pm"
@@ -330,6 +348,16 @@ verify_environment() {
   env_id=$1
   require_jq
   environment_exists "$env_id" || die "unknown environment: $env_id"
+  if [ "$env_id" = dotnet ]; then
+    platform=$(detect_platform); arch=$(normalize_arch); pm=$(detect_package_manager); version=$(detect_version)
+    if [ -n "$(dotnet_linux_target_json "$platform" || true)" ]; then
+      dotnet_linux_validate_target "$platform" "$version" "$arch" "$pm"
+      printf '[verify] dotnet --list-sdks contains 10.x\n'
+      if dotnet_linux_verify; then return 0; fi
+      warn ".NET 10 SDK verification failed"
+      return 1
+    fi
+  fi
   failed=0
   while IFS= read -r cmd; do
     [ -n "$cmd" ] || continue
@@ -371,6 +399,9 @@ install_environment() {
     return 0
   fi
   case "$strategy" in
+    dotnet-linux)
+      dotnet_linux_install "$platform" "$version" "$arch" "$pm"
+      ;;
     package-manager)
       [ "$pm" != none ] || die "no supported package manager detected"
       native=$(native_package_json "$env_id" "$platform" || true)
@@ -461,6 +492,7 @@ doctor() {
   log "manifest JSON parse: PASS"
   log "artifact manifest JSON parse: PASS"
   log "repository manifest JSON parse: PASS"
+  log ".NET Linux manifest JSON parse: PASS"
   log "state directory: PASS ($STATE_DIR)"
   log "doctor completed"
 }
