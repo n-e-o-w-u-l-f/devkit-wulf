@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/go-artifact.schema.json",
+  "title": "devkit-wulf verified Go toolchain artifact contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "publisher", "product", "support", "release_index_url", "download_base", "version_pattern", "install", "targets", "policy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"const": "The Go Authors"},
+    "product": {"const": "Go toolchain"},
+    "support": {"const": "experimental"},
+    "release_index_url": {"const": "https://go.dev/dl/?mode=json"},
+    "download_base": {"const": "https://go.dev/dl"},
+    "version_pattern": {"type": "string", "minLength": 10},
+    "install": {
+      "type": "object",
+      "required": ["destination_template", "path_directory_template", "marker_template", "root_directory", "critical_files"],
+      "properties": {
+        "destination_template": {"const": "{home}/.local/share/devkit-wulf/go"},
+        "path_directory_template": {"const": "{home}/.local/share/devkit-wulf/go/bin"},
+        "marker_template": {"const": "{home}/.local/share/devkit-wulf/go/.devkit-wulf-go.json"},
+        "root_directory": {"const": "go"},
+        "critical_files": {"const": ["bin/go", "bin/gofmt"]}
+      },
+      "additionalProperties": false
+    },
+    "targets": {
+      "type": "object",
+      "required": ["linux", "macos"],
+      "properties": {
+        "linux": {
+          "type": "object",
+          "required": ["go_os", "archive_format", "architectures"],
+          "properties": {
+            "go_os": {"const": "linux"},
+            "archive_format": {"const": "tar.gz"},
+            "architectures": {"const": ["amd64", "arm64", "riscv64", "ppc64le", "s390x"]}
+          },
+          "additionalProperties": false
+        },
+        "macos": {
+          "type": "object",
+          "required": ["go_os", "archive_format", "architectures"],
+          "properties": {
+            "go_os": {"const": "darwin"},
+            "archive_format": {"const": "tar.gz"},
+            "architectures": {"const": ["amd64", "arm64"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["no_remote_script_execution", "no_path_mutation", "no_privilege", "safe_remove", "automatic_upgrade"],
+      "properties": {
+        "no_remote_script_execution": {"const": true},
+        "no_path_mutation": {"const": true},
+        "no_privilege": {"const": true},
+        "safe_remove": {"const": false},
+        "automatic_upgrade": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
