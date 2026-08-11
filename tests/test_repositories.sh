@@ -15,6 +15,7 @@ mkdir -p \
   "$TEST_ROOT/etc/apt/keyrings" \
   "$TEST_ROOT/etc/apt/sources.list.d" \
   "$TEST_ROOT/etc/yum.repos.d" \
+  "$TEST_ROOT/etc/pki/rpm-gpg" \
   "$STATE_DIR"
 
 cat > "$TEST_ROOT/bin/apt-get" <<'EOF'
@@ -140,16 +141,19 @@ cat > "$REPOSITORY_MANIFEST" <<EOF
           "prerequisites": [],
           "architectures": ["amd64"],
           "supported_versions": ["44"],
+          "key_directory": "$TEST_ROOT/etc/pki/rpm-gpg",
           "keys": [
             {
               "url": "https://example.invalid/key.gpg",
-              "transform": "repository-key",
+              "destination": "$TEST_ROOT/etc/pki/rpm-gpg/remote.gpg",
+              "transform": "copy",
               "fingerprint": "AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA"
             }
           ],
           "repository_file": "$TEST_ROOT/etc/yum.repos.d/remote.repo",
           "repository_url": "https://example.invalid/remote.repo",
           "repository_required_substrings": ["gpgcheck=1", "https://example.invalid/key.gpg"],
+          "localize_key_urls": true,
           "services": [{"name": "remote-service", "action": "enable-now"}],
           "package_signature_required": true,
           "repository_signature_required": false,
@@ -285,11 +289,18 @@ grep 'foreign repository content' "$TEST_ROOT/etc/apt/sources.list.d/fixture.sou
 state_lines_after=$(wc -l < "$STATE_DIR/repositories.jsonl" | tr -d ' ')
 [ "$state_lines_before" = "$state_lines_after" ] || { echo "state changed before repository conflict gate" >&2; exit 1; }
 
-# Remote .repo staging requires declared security markers and applies service action.
+# Remote .repo staging verifies the key fingerprint, pins the verified key locally,
+# rewrites gpgkey= to file://, and applies the declared service action.
 : > "$LOG_FILE"
 install_vendor_repository remote fedora fedora dnf amd64 44
+[ -f "$TEST_ROOT/etc/pki/rpm-gpg/remote.gpg" ]
 [ -f "$TEST_ROOT/etc/yum.repos.d/remote.repo" ]
 grep 'gpgcheck=1' "$TEST_ROOT/etc/yum.repos.d/remote.repo" >/dev/null
+grep "gpgkey=file://$TEST_ROOT/etc/pki/rpm-gpg/remote.gpg" "$TEST_ROOT/etc/yum.repos.d/remote.repo" >/dev/null
+if grep -Fq 'gpgkey=https://example.invalid/key.gpg' "$TEST_ROOT/etc/yum.repos.d/remote.repo"; then
+  echo "remote key URL remained after local pinning" >&2
+  exit 1
+fi
 grep 'install_packages dnf remote-package' "$LOG_FILE" >/dev/null
 grep 'systemctl enable --now remote-service' "$LOG_FILE" >/dev/null
 
@@ -306,7 +317,7 @@ BAD_MANIFEST="$TEST_ROOT/bad-fingerprint.json"
 jq '.repositories.remote.targets["platform:fedora"].keys[0].fingerprint = "BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB"' "$REPOSITORY_MANIFEST" > "$BAD_MANIFEST"
 REPOSITORY_MANIFEST="$BAD_MANIFEST"
 export REPOSITORY_MANIFEST
-rm -f "$TEST_ROOT/etc/yum.repos.d/remote.repo"
+rm -f "$TEST_ROOT/etc/yum.repos.d/remote.repo" "$TEST_ROOT/etc/pki/rpm-gpg/remote.gpg"
 : > "$LOG_FILE"
 if install_vendor_repository remote fedora fedora dnf amd64 44 >/dev/null 2>&1; then
   echo "repository key fingerprint mismatch unexpectedly accepted" >&2
