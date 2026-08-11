@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "research_date": "2026-08-11",
+  "support": "experimental",
+  "publisher": "The Rust Project",
+  "source": "https://rust-lang.github.io/rustup/",
+  "distribution_base_url": "https://static.rust-lang.org/rustup/dist",
+  "target": {
+    "platform": "windows",
+    "architectures": {
+      "amd64": "x86_64-pc-windows-msvc",
+      "arm64": "aarch64-pc-windows-msvc"
+    },
+    "filename": "rustup-init.exe",
+    "checksum_filename": "rustup-init.exe.sha256",
+    "root_template": "{localappdata}/devkit-wulf",
+    "cargo_home_relative": "cargo",
+    "rustup_home_relative": "rustup",
+    "path_directory_relative": "cargo/bin",
+    "marker_relative_path": ".devkit-wulf-rustup.json",
+    "critical_files": ["cargo/bin/rustup.exe", "cargo/bin/rustc.exe", "cargo/bin/cargo.exe"],
+    "integrity": "sha256-sidecar",
+    "privileged": false,
+    "path_mutation": false
+  },
+  "install": {
+    "arguments": ["-y", "--profile", "minimal", "--default-toolchain", "stable", "--no-modify-path"],
+    "toolchain": "stable",
+    "profile": "minimal",
+    "modify_path": false
+  }
+}
