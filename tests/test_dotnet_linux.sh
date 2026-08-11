@@ -11,7 +11,7 @@ cleanup_test_root() {
 trap 'cleanup_test_root' EXIT HUP INT TERM
 STATE_DIR="$TEST_ROOT/state"
 BIN_DIR="$TEST_ROOT/bin"
-mkdir -p "$STATE_DIR" "$BIN_DIR" "$TEST_ROOT/etc/apt" "$TEST_ROOT/keys"
+mkdir -p "$STATE_DIR" "$BIN_DIR" "$TEST_ROOT/etc/apt" "$TEST_ROOT/etc/zypp" "$TEST_ROOT/keys"
 
 command -v jq >/dev/null 2>&1 || { echo "jq required" >&2; exit 1; }
 
@@ -40,7 +40,9 @@ install_packages() {
   shift
   printf '%s\n' "$_test_pm" >> "$PM_LOG"
   printf '%s\n' "$*" >> "$PACKAGE_LOG"
-  cat > "$BIN_DIR/dotnet" <<'EOF'
+  case " $* " in
+    *' dotnet-sdk-10.0 '*)
+      cat > "$BIN_DIR/dotnet" <<'EOF'
 #!/bin/sh
 case "$1" in
   --list-sdks) printf '10.0.110 [/fixture/sdk]\n' ;;
@@ -48,7 +50,9 @@ case "$1" in
   *) exit 0 ;;
 esac
 EOF
-  chmod 0755 "$BIN_DIR/dotnet"
+      chmod 0755 "$BIN_DIR/dotnet"
+      ;;
+  esac
 }
 
 download_https() {
@@ -57,6 +61,15 @@ download_https() {
   case "$url" in
     https://packages.microsoft.com/keys/microsoft.asc|https://packages.microsoft.com/keys/microsoft-2025.asc)
       printf 'fixture-key\n' > "$dest"
+      ;;
+    https://packages.microsoft.com/config/opensuse/16/prod.repo)
+      cat > "$dest" <<'EOF'
+[packages-microsoft-com-prod]
+name=Microsoft Production
+baseurl=https://packages.microsoft.com/opensuse/16/prod/
+enabled=1
+gpgcheck=1
+EOF
       ;;
     *) echo "unexpected URL: $url" >&2; return 97 ;;
   esac
@@ -107,13 +120,13 @@ cat > "$DOTNET_LINUX_MANIFEST" <<EOF
       "package_source": "microsoft",
       "sdk_package": "dotnet-sdk-10.0",
       "versions": {
-        "12": {"architectures":["amd64","arm64"],"repository":{"base_url":"https://packages.microsoft.com/debian/12/prod","suite":"bookworm","key_url":"https://packages.microsoft.com/keys/microsoft.asc","key_fingerprint":"BC52 8686 B50D 79E3 39D3 721C EB3E 94AD BE12 29CF","key_destination":"$TEST_ROOT/keys/microsoft-prod.gpg","repository_file":"$TEST_ROOT/etc/apt/microsoft-prod.list"}},
-        "13": {"architectures":["amd64","arm64"],"repository":{"base_url":"https://packages.microsoft.com/debian/13/prod","suite":"trixie","key_url":"https://packages.microsoft.com/keys/microsoft-2025.asc","key_fingerprint":"AA86 F75E 427A 19DD 3334 6403 EE4D 7792 F748 182B","key_destination":"$TEST_ROOT/keys/microsoft-prod.gpg","repository_file":"$TEST_ROOT/etc/apt/microsoft-prod.list"}}
+        "12": {"architectures":["amd64","arm64"],"repository":{"base_url":"https://packages.microsoft.com/debian/12/prod","suite":"bookworm","key_url":"https://packages.microsoft.com/keys/microsoft.asc","key_fingerprint":"BC52 8686 B50D 79E3 39D3 721C EB3E 94AD BE12 29CF","key_transform":"gpg-dearmor","key_destination":"$TEST_ROOT/keys/microsoft-prod.gpg","repository_file":"$TEST_ROOT/etc/apt/microsoft-prod.list"}},
+        "13": {"architectures":["amd64","arm64"],"repository":{"base_url":"https://packages.microsoft.com/debian/13/prod","suite":"trixie","key_url":"https://packages.microsoft.com/keys/microsoft-2025.asc","key_fingerprint":"AA86 F75E 427A 19DD 3334 6403 EE4D 7792 F748 182B","key_transform":"gpg-dearmor","key_destination":"$TEST_ROOT/keys/microsoft-prod.gpg","repository_file":"$TEST_ROOT/etc/apt/microsoft-prod.list"}}
       }
     },
     "fedora": {"documentation":"https://learn.microsoft.com/en-us/dotnet/core/install/linux-fedora","package_manager":"dnf","package_source":"distribution","sdk_package":"dotnet-sdk-10.0","versions":{"43":{"architectures":["amd64"]},"44":{"architectures":["amd64"]}}},
     "rhel": {"documentation":"https://learn.microsoft.com/en-us/dotnet/core/install/linux-rhel","package_manager":"dnf","package_source":"distribution-appstream","sdk_package":"dotnet-sdk-10.0","subscription_required":true,"versions":{"8":{"architectures":["amd64","arm64","s390x","ppc64le"]},"9":{"architectures":["amd64","arm64","s390x","ppc64le"]},"10":{"architectures":["amd64","arm64","s390x","ppc64le"]}}},
-    "opensuse-leap": {"documentation":"https://learn.microsoft.com/en-us/dotnet/core/install/linux-opensuse","package_manager":"zypper","package_source":"microsoft","sdk_package":"dotnet-sdk-10.0","versions":{"16":{"architectures":["amd64","arm64"],"repository":{"base_url":"https://packages.microsoft.com/opensuse/16/prod/","key_url":"https://packages.microsoft.com/keys/microsoft.asc","key_fingerprint":"BC52 8686 B50D 79E3 39D3 721C EB3E 94AD BE12 29CF","key_destination":"$TEST_ROOT/keys/microsoft-prod.gpg","repository_file":"$TEST_ROOT/etc/zypp/microsoft-prod.repo","repository_id":"packages-microsoft-com-prod"}}}}
+    "opensuse-leap": {"documentation":"https://learn.microsoft.com/en-us/dotnet/core/install/linux-opensuse","package_manager":"zypper","package_source":"microsoft","sdk_package":"dotnet-sdk-10.0","prerequisites":["libicu"],"versions":{"16":{"architectures":["amd64","arm64"],"repository":{"base_url":"https://packages.microsoft.com/opensuse/16/prod/","repository_url":"https://packages.microsoft.com/config/opensuse/16/prod.repo","key_url":"https://packages.microsoft.com/keys/microsoft.asc","key_fingerprint":"BC52 8686 B50D 79E3 39D3 721C EB3E 94AD BE12 29CF","key_transform":"copy","key_destination":"$TEST_ROOT/keys/microsoft.asc","repository_file":"$TEST_ROOT/etc/zypp/microsoft-prod.repo","repository_id":"packages-microsoft-com-prod"}}}}
   }
 }
 EOF
@@ -126,6 +139,8 @@ dotnet_linux_validate_target debian 13 arm64 apt
 dotnet_linux_validate_target fedora 44 amd64 dnf
 dotnet_linux_validate_target rhel 10 ppc64le dnf
 dotnet_linux_validate_target opensuse-leap 16 arm64 zypper
+dotnet_linux_target_compatible debian 12 amd64 apt
+if dotnet_linux_target_compatible debian 11 amd64 apt; then echo "compatibility helper accepted Debian 11" >&2; exit 1; fi
 if (dotnet_linux_validate_target debian 11 amd64 apt >/dev/null 2>&1); then echo "Debian 11 unexpectedly supported" >&2; exit 1; fi
 if (dotnet_linux_validate_target fedora 44 arm64 dnf >/dev/null 2>&1); then echo "unvalidated Fedora arm64 unexpectedly supported" >&2; exit 1; fi
 if (dotnet_linux_validate_target opensuse-leap 15 amd64 zypper >/dev/null 2>&1); then echo "Leap 15 unexpectedly supported" >&2; exit 1; fi
@@ -134,6 +149,7 @@ plan=$(dotnet_linux_plan debian 12 amd64 apt)
 printf '%s\n' "$plan" | grep 'package_source: microsoft' >/dev/null
 printf '%s\n' "$plan" | grep 'mutates_host: false' >/dev/null
 printf '%s\n' "$plan" | grep 'BC52 8686' >/dev/null
+printf '%s\n' "$plan" | grep 'key_transform: gpg-dearmor' >/dev/null
 
 : > "$MUTATION_LOG"
 : > "$PACKAGE_LOG"
@@ -185,6 +201,40 @@ export RHEL_REGISTERED
 dotnet_linux_install rhel 10 amd64 dnf
 grep '^dnf$' "$PM_LOG" >/dev/null
 grep '^dotnet-sdk-10.0$' "$PACKAGE_LOG" >/dev/null
+
+# openSUSE follows Microsoft's documented prod.repo + ASCII-key path.
+rm -f "$BIN_DIR/dotnet"
+: > "$PACKAGE_LOG"
+: > "$PM_LOG"
+dotnet_linux_install opensuse-leap 16 amd64 zypper
+[ "$(cat "$TEST_ROOT/keys/microsoft.asc")" = fixture-key ]
+grep '^\[packages-microsoft-com-prod\]$' "$TEST_ROOT/etc/zypp/microsoft-prod.repo" >/dev/null
+grep 'baseurl=https://packages.microsoft.com/opensuse/16/prod/' "$TEST_ROOT/etc/zypp/microsoft-prod.repo" >/dev/null
+[ "$(sed -n '1p' "$PACKAGE_LOG")" = libicu ]
+[ "$(sed -n '2p' "$PACKAGE_LOG")" = dotnet-sdk-10.0 ]
+[ "$(sed -n '1p' "$PM_LOG")" = zypper ]
+[ "$(sed -n '2p' "$PM_LOG")" = zypper ]
+
+# A downloaded repository file may not disable signature/TLS checks.
+rm -f "$BIN_DIR/dotnet" "$TEST_ROOT/etc/zypp/microsoft-prod.repo" "$TEST_ROOT/keys/microsoft.asc"
+download_https() {
+  url=$1
+  dest=$2
+  case "$url" in
+    https://packages.microsoft.com/keys/microsoft.asc) printf 'fixture-key\n' > "$dest" ;;
+    https://packages.microsoft.com/config/opensuse/16/prod.repo)
+      cat > "$dest" <<'EOF'
+[packages-microsoft-com-prod]
+baseurl=https://packages.microsoft.com/opensuse/16/prod/
+gpgcheck=0
+EOF
+      ;;
+    *) return 97 ;;
+  esac
+}
+: > "$MUTATION_LOG"
+if (dotnet_linux_install opensuse-leap 16 amd64 zypper >/dev/null 2>&1); then echo "unsafe openSUSE repository unexpectedly accepted" >&2; exit 1; fi
+[ ! -s "$MUTATION_LOG" ]
 
 rm -f "$STATE_DIR/dotnet-linux.jsonl"
 printf '{}\n' > "$TEST_ROOT/state-target"
