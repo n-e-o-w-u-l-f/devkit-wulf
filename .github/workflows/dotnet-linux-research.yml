@@ -1,0 +1,44 @@
+name: dotnet-linux-research
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/dotnet-linux-research.json'
+      - 'manifests/schema/dotnet-linux-research.schema.json'
+      - 'tests/validate_dotnet_linux_research.py'
+      - 'docs/environments/dotnet-linux-research.md'
+      - '.github/workflows/dotnet-linux-research.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifests/dotnet-linux-research.json'
+      - 'manifests/schema/dotnet-linux-research.schema.json'
+      - 'tests/validate_dotnet_linux_research.py'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate semantic research contract
+        run: python tests/validate_dotnet_linux_research.py
+      - name: Validate research JSON Schema
+        run: |
+          python -m pip install --disable-pip-version-check jsonschema
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          root = Path('.')
+          schema = json.loads((root / 'manifests/schema/dotnet-linux-research.schema.json').read_text())
+          manifest = json.loads((root / 'manifests/dotnet-linux-research.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(manifest)
+          print('.NET Linux research schema validation passed')
+          PY
