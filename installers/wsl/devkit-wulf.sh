@@ -19,9 +19,6 @@ done
 
 SCRIPT_DIR=$(CDPATH= cd -P "$(dirname "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -P "$SCRIPT_DIR/../.." && pwd)
-CORE="$ROOT_DIR/bin/devkit-wulf"
-[ -f "$CORE" ] || fail "POSIX orchestrator core not found: $CORE"
-[ -x "$CORE" ] || fail "POSIX orchestrator core is not executable: $CORE"
 
 if [ "${2:-}" = "python@3.12" ]; then
     case "${1:-}" in
@@ -38,4 +35,7 @@ if [ "${2:-}" = "python@3.12" ]; then
     esac
 fi
 
+CORE="$ROOT_DIR/bin/devkit-wulf"
+[ -f "$CORE" ] || fail "POSIX orchestrator core not found: $CORE"
+[ -x "$CORE" ] || fail "POSIX orchestrator core is not executable: $CORE"
 exec "$CORE" "$@"
