@@ -12,16 +12,8 @@
           "prerequisites": ["apt-transport-https", "ca-certificates", "curl", "gnupg"],
           "key_directory": "/etc/apt/keyrings",
           "keys": [
-            {
-              "url": "https://get.opentofu.org/opentofu.gpg",
-              "destination": "/etc/apt/keyrings/opentofu.gpg",
-              "transform": "copy"
-            },
-            {
-              "url": "https://packages.opentofu.org/opentofu/tofu/gpgkey",
-              "destination": "/etc/apt/keyrings/opentofu-repo.gpg",
-              "transform": "gpg-dearmor"
-            }
+            {"url": "https://get.opentofu.org/opentofu.gpg", "destination": "/etc/apt/keyrings/opentofu.gpg", "transform": "copy"},
+            {"url": "https://packages.opentofu.org/opentofu/tofu/gpgkey", "destination": "/etc/apt/keyrings/opentofu-repo.gpg", "transform": "gpg-dearmor"}
           ],
           "repository_file": "/etc/apt/sources.list.d/opentofu.list",
           "repository_content": "deb [signed-by=/etc/apt/keyrings/opentofu.gpg,/etc/apt/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main\ndeb-src [signed-by=/etc/apt/keyrings/opentofu.gpg,/etc/apt/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main\n",
@@ -73,13 +65,7 @@
           "architectures": ["amd64", "armv7", "arm64", "ppc64le"],
           "supported_versions": ["11", "12", "13"],
           "key_directory": "/etc/apt/keyrings",
-          "keys": [
-            {
-              "url": "https://download.docker.com/linux/debian/gpg",
-              "destination": "/etc/apt/keyrings/docker.asc",
-              "transform": "copy"
-            }
-          ],
+          "keys": [{"url": "https://download.docker.com/linux/debian/gpg", "destination": "/etc/apt/keyrings/docker.asc", "transform": "copy"}],
           "repository_file": "/etc/apt/sources.list.d/docker.sources",
           "repository_content_template": "Types: deb\nURIs: https://download.docker.com/linux/debian\nSuites: {suite}\nComponents: stable\nArchitectures: {architecture}\nSigned-By: /etc/apt/keyrings/docker.asc\n",
           "suite_resolver": "debian-codename",
@@ -98,13 +84,7 @@
           "architectures": ["amd64", "armv7", "arm64", "ppc64le", "s390x"],
           "supported_versions": ["22.04", "24.04", "25.10", "26.04"],
           "key_directory": "/etc/apt/keyrings",
-          "keys": [
-            {
-              "url": "https://download.docker.com/linux/ubuntu/gpg",
-              "destination": "/etc/apt/keyrings/docker.asc",
-              "transform": "copy"
-            }
-          ],
+          "keys": [{"url": "https://download.docker.com/linux/ubuntu/gpg", "destination": "/etc/apt/keyrings/docker.asc", "transform": "copy"}],
           "repository_file": "/etc/apt/sources.list.d/docker.sources",
           "repository_content_template": "Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: {suite}\nComponents: stable\nArchitectures: {architecture}\nSigned-By: /etc/apt/keyrings/docker.asc\n",
           "suite_resolver": "ubuntu-codename",
@@ -122,13 +102,7 @@
           "conflicting_packages": ["docker", "docker-client", "docker-client-latest", "docker-common", "docker-latest", "docker-latest-logrotate", "docker-logrotate", "docker-selinux", "docker-engine-selinux", "docker-engine"],
           "architectures": ["amd64", "arm64", "ppc64le"],
           "supported_versions": ["43", "44"],
-          "keys": [
-            {
-              "url": "https://download.docker.com/linux/fedora/gpg",
-              "transform": "repository-key",
-              "fingerprint": "060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35"
-            }
-          ],
+          "keys": [{"url": "https://download.docker.com/linux/fedora/gpg", "transform": "repository-key", "fingerprint": "060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35"}],
           "repository_file": "/etc/yum.repos.d/docker-ce.repo",
           "repository_url": "https://download.docker.com/linux/fedora/docker-ce.repo",
           "repository_required_substrings": ["gpgcheck=1", "https://download.docker.com/linux/fedora/gpg"],
@@ -145,13 +119,7 @@
           "conflicting_packages": ["docker", "docker-client", "docker-client-latest", "docker-common", "docker-latest", "docker-latest-logrotate", "docker-logrotate", "docker-engine", "podman", "runc"],
           "architectures": ["amd64", "arm64", "s390x"],
           "supported_versions": ["8", "9", "10"],
-          "keys": [
-            {
-              "url": "https://download.docker.com/linux/rhel/gpg",
-              "transform": "repository-key",
-              "fingerprint": "060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35"
-            }
-          ],
+          "keys": [{"url": "https://download.docker.com/linux/rhel/gpg", "transform": "repository-key", "fingerprint": "060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35"}],
           "repository_file": "/etc/yum.repos.d/docker-ce.repo",
           "repository_url": "https://download.docker.com/linux/rhel/docker-ce.repo",
           "repository_required_substrings": ["gpgcheck=1", "https://download.docker.com/linux/rhel/gpg"],
@@ -165,23 +133,11 @@
   },
   "native_packages": {
     "opentofu": {
-      "fedora": {
-        "documentation": "https://opentofu.org/docs/v1.12/intro/install/fedora/",
-        "package_manager": "dnf",
-        "package": "opentofu"
-      }
+      "fedora": {"documentation": "https://opentofu.org/docs/v1.12/intro/install/fedora/", "package_manager": "dnf", "package": "opentofu"}
     },
     "docker": {
-      "opensuse-leap": {
-        "documentation": "https://en.opensuse.org/Docker",
-        "package_manager": "zypper",
-        "package": "docker"
-      },
-      "opensuse-tumbleweed": {
-        "documentation": "https://en.opensuse.org/Docker",
-        "package_manager": "zypper",
-        "package": "docker"
-      }
+      "opensuse-leap": {"documentation": "https://en.opensuse.org/Docker", "package_manager": "zypper", "package": "docker", "services": [{"name": "docker", "action": "enable-now"}]},
+      "opensuse-tumbleweed": {"documentation": "https://en.opensuse.org/Docker", "package_manager": "zypper", "package": "docker", "services": [{"name": "docker", "action": "enable-now"}]}
     }
   }
 }
