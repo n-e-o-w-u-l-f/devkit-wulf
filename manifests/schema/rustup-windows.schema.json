@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/rustup-windows.schema.json",
+  "title": "devkit-wulf native Windows rustup-init artifact contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "support", "publisher", "source", "distribution_base_url", "target", "install"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "support": {"const": "experimental"},
+    "publisher": {"const": "The Rust Project"},
+    "source": {"const": "https://rust-lang.github.io/rustup/"},
+    "distribution_base_url": {"const": "https://static.rust-lang.org/rustup/dist"},
+    "target": {
+      "type": "object",
+      "required": ["platform", "architectures", "filename", "checksum_filename", "root_template", "cargo_home_relative", "rustup_home_relative", "path_directory_relative", "marker_relative_path", "critical_files", "integrity", "privileged", "path_mutation"],
+      "properties": {
+        "platform": {"const": "windows"},
+        "architectures": {
+          "type": "object",
+          "required": ["amd64", "arm64"],
+          "properties": {
+            "amd64": {"const": "x86_64-pc-windows-msvc"},
+            "arm64": {"const": "aarch64-pc-windows-msvc"}
+          },
+          "additionalProperties": false
+        },
+        "filename": {"const": "rustup-init.exe"},
+        "checksum_filename": {"const": "rustup-init.exe.sha256"},
+        "root_template": {"const": "{localappdata}/devkit-wulf"},
+        "cargo_home_relative": {"const": "cargo"},
+        "rustup_home_relative": {"const": "rustup"},
+        "path_directory_relative": {"const": "cargo/bin"},
+        "marker_relative_path": {"const": ".devkit-wulf-rustup.json"},
+        "critical_files": {"const": ["cargo/bin/rustup.exe", "cargo/bin/rustc.exe", "cargo/bin/cargo.exe"]},
+        "integrity": {"const": "sha256-sidecar"},
+        "privileged": {"const": false},
+        "path_mutation": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "install": {
+      "type": "object",
+      "required": ["arguments", "toolchain", "profile", "modify_path"],
+      "properties": {
+        "arguments": {"const": ["-y", "--profile", "minimal", "--default-toolchain", "stable", "--no-modify-path"]},
+        "toolchain": {"const": "stable"},
+        "profile": {"const": "minimal"},
+        "modify_path": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
