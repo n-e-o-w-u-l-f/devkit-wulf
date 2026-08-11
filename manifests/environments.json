@@ -321,12 +321,12 @@
         "pacman": ["php", "composer"],
         "dnf": ["php-cli", "php-devel", "composer"],
         "zypper": ["php8", "php8-devel", "composer"],
-        "apk": ["php84", "php84-dev", "composer"],
+        "apk": ["php83", "php83-dev", "composer"],
         "brew": ["php", "composer"],
         "pkg_add": ["php", "composer"]
       },
       "verify": ["php --version", "composer --version"],
-      "sources": ["https://www.php.net/manual/en/install.unix.php", "https://www.php.net/manual/en/install.windows.php", "https://www.php.net/manual/en/install.macosx.php"],
+      "sources": ["https://www.php.net/manual/en/install.php", "https://getcomposer.org/download/"],
       "safe_remove": false
     },
     "ruby": {
@@ -430,53 +430,63 @@
       },
       "packages": {"winget":["Google.AndroidStudio"]},
       "verify": ["adb version"],
-      "sources": ["https://developer.android.com/studio/install", "https://developer.android.com/studio"],
+      "sources": ["https://developer.android.com/studio", "https://developer.android.com/studio/install"],
       "safe_remove": false,
-      "notes": "Emulator installation additionally requires host virtualization capability. Download SHA-256 must be validated for archive installs."
+      "notes": "Android Studio itself is not the whole Android SDK lifecycle; command-line tools, platform-tools and emulator images need separate versioned handling."
     },
     "flutter": {
-      "name": "Flutter / Dart",
+      "name": "Flutter / Dart SDK",
       "category": "mobile",
       "platforms": {
         "windows": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
-        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
-        "arch": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
-        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]},
+        "debian": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "arch": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
+        "fedora": {"support":"experimental","strategy":"official-archive","architectures":["amd64"]},
         "macos": {"support":"experimental","strategy":"official-archive","architectures":["amd64","arm64"]}
       },
-      "verify": ["flutter --version", "dart --version", "flutter doctor"],
-      "sources": ["https://docs.flutter.dev/install/manual", "https://docs.flutter.dev/install/archive", "https://docs.flutter.dev/install/custom"],
+      "verify": ["flutter --version", "dart --version"],
+      "sources": ["https://docs.flutter.dev/install", "https://docs.flutter.dev/platform-integration/desktop"],
       "safe_remove": false,
-      "notes": "Host target restrictions are explicit: Windows desktop on Windows, macOS/iOS on macOS, Linux desktop on Linux."
+      "notes": "Flutter desktop targets require platform-specific native toolchains in addition to the Flutter SDK."
     },
-    "apple": {
-      "name": "Apple development stack",
+    "xcode": {
+      "name": "Xcode / Apple SDKs",
       "category": "mobile",
       "platforms": {
+        "macos": {"support":"experimental","strategy":"xcode","architectures":["amd64","arm64"]},
         "windows": {"support":"unsupported","strategy":"unsupported"},
-        "debian": {"support":"unsupported","strategy":"unsupported"},
-        "arch": {"support":"unsupported","strategy":"unsupported"},
-        "fedora": {"support":"unsupported","strategy":"unsupported"},
-        "macos": {"support":"experimental","strategy":"xcode","architectures":["amd64","arm64"]}
+        "debian": {"support":"unsupported","strategy":"unsupported"}
       },
-      "verify": ["xcode-select -p", "xcrun --version", "swift --version"],
-      "sources": ["https://developer.apple.com/xcode/"],
+      "verify": ["xcodebuild -version", "xcrun --find clang"],
+      "sources": ["https://developer.apple.com/xcode/", "https://developer.apple.com/documentation/xcode/installing-the-command-line-tools/"],
       "safe_remove": false
     },
     "docker": {
-      "name": "Docker",
+      "name": "Docker Engine / Docker Desktop",
       "category": "containers",
       "platforms": {
-        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64"],"notes":"Docker Desktop client Windows; WSL2 is preferred for common Linux-container development. Windows Server is excluded."},
-        "debian": {"support":"experimental","strategy":"manual","notes":"Prefer native Docker Engine repository. Docker Desktop is a separate VM-backed product."},
+        "windows": {"support":"experimental","strategy":"winget","architectures":["amd64","arm64"],"notes":"Docker Desktop requires WSL2 or Hyper-V; verify edition and backend."},
+        "debian": {"support":"experimental","strategy":"manual"},
+        "ubuntu": {"support":"experimental","strategy":"manual"},
+        "linuxmint": {"support":"experimental","strategy":"manual","notes":"Docker documents derivatives as potentially workable but not tested; do not inherit Ubuntu/Debian vendor-repository support."},
         "arch": {"support":"experimental","strategy":"package-manager"},
         "fedora": {"support":"experimental","strategy":"manual"},
         "rhel": {"support":"experimental","strategy":"manual"},
-        "opensuse": {"support":"experimental","strategy":"manual"},
+        "centos": {"support":"experimental","strategy":"manual","notes":"Docker has separate CentOS instructions; keep it distinct from RHEL until a dedicated adapter is added."},
+        "rocky": {"support":"experimental","strategy":"manual","notes":"RHEL-compatible does not imply Docker-tested; no automatic vendor-repository inheritance."},
+        "almalinux": {"support":"experimental","strategy":"manual","notes":"RHEL-compatible does not imply Docker-tested; no automatic vendor-repository inheritance."},
+        "opensuse-leap": {"support":"experimental","strategy":"package-manager","notes":"Uses the distribution docker package; this is not a Docker CE vendor-repository claim."},
+        "opensuse-tumbleweed": {"support":"experimental","strategy":"package-manager","notes":"Uses the rolling distribution docker package; this is not a Docker CE vendor-repository claim."},
         "alpine": {"support":"experimental","strategy":"package-manager"},
-        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"]}
+        "macos": {"support":"experimental","strategy":"package-manager","architectures":["amd64","arm64"],"notes":"Docker Desktop; licensing and virtualization checks apply."}
       },
-      "packages": {"winget":["Docker.DockerDesktop"],"pacman":["docker"],"apk":["docker"],"brew":["--cask","docker"]},
+      "packages": {
+        "winget": ["Docker.DockerDesktop"],
+        "pacman": ["docker", "docker-buildx", "docker-compose"],
+        "zypper": ["docker", "docker-compose"],
+        "apk": ["docker", "docker-cli-compose"],
+        "brew": ["--cask", "docker"]
+      },
       "verify": ["docker version"],
       "sources": ["https://docs.docker.com/desktop/setup/install/windows-install/", "https://docs.docker.com/desktop/setup/install/linux/", "https://docs.docker.com/engine/install/"],
       "safe_remove": false,
