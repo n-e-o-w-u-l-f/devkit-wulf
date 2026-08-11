@@ -22,6 +22,14 @@ It defines the common outcome:
 
 The installer commands themselves are **not** shared blindly across operating systems.
 
+The user-facing version selector is:
+
+```text
+python@3.12
+```
+
+Each system-native release entrypoint resolves that selector to its own adapter **before** falling back to the generic internal orchestration core. The generic `python` target remains unchanged.
+
 ## Lifecycle boundary
 
 Python 3.12 is in the security-only stage and is scheduled to receive source-only security releases until October 2028.
@@ -30,12 +38,18 @@ At this research date, the current upstream release is **3.12.13**. Python.org s
 
 ## Windows native
 
-Entrypoint:
+Preferred user-facing commands:
 
 ```powershell
-.\installers\windows\environments\python-3.12.ps1 plan
-.\installers\windows\environments\python-3.12.ps1 install -Experimental
-.\installers\windows\environments\python-3.12.ps1 verify
+.\installers\windows\devkit-wulf.ps1 plan 'python@3.12'
+.\installers\windows\devkit-wulf.ps1 install 'python@3.12' -Experimental
+.\installers\windows\devkit-wulf.ps1 verify 'python@3.12'
+```
+
+The release entrypoint routes these operations to:
+
+```text
+installers/windows/environments/python-3.12.ps1
 ```
 
 Strategy: **Python Install Manager**.
@@ -52,16 +66,22 @@ The adapter:
 6. creates an ephemeral virtual environment and checks `pip` inside it;
 7. does not force/update an older managed runtime automatically because manager updates may replace runtime modifications.
 
-The adapter never uses an arbitrary `python.exe` found on PATH as proof of success.
+The adapter never uses an arbitrary `python.exe` found on PATH as proof of success. Version-specific routing also rejects generic-only switches such as `-AcceptRemoteScript`, `-Supported` and `-Platform` rather than silently ignoring them.
 
 ## Native Linux: Ubuntu 24.04 only
 
-Entrypoint:
+Preferred user-facing commands:
 
 ```sh
-./installers/linux/environments/python-3.12.sh plan
-./installers/linux/environments/python-3.12.sh install --experimental
-./installers/linux/environments/python-3.12.sh verify
+./installers/linux/devkit-wulf.sh plan python@3.12
+./installers/linux/devkit-wulf.sh install python@3.12 --experimental
+./installers/linux/devkit-wulf.sh verify python@3.12
+```
+
+The release entrypoint routes these operations to:
+
+```text
+installers/linux/environments/python-3.12.sh
 ```
 
 The initial native Linux implementation is intentionally restricted to exact Ubuntu **24.04** (`ID=ubuntu`, `VERSION_ID=24.04`).
@@ -85,15 +105,15 @@ A future Debian Python 3.12 source/build or alternative trusted package path req
 
 ## WSL2
 
-Entrypoint:
+Preferred user-facing commands inside the WSL distribution:
 
 ```sh
-./installers/wsl/environments/python-3.12.sh plan
-./installers/wsl/environments/python-3.12.sh install --experimental
-./installers/wsl/environments/python-3.12.sh verify
+./installers/wsl/devkit-wulf.sh plan python@3.12
+./installers/wsl/devkit-wulf.sh install python@3.12 --experimental
+./installers/wsl/devkit-wulf.sh verify python@3.12
 ```
 
-The WSL adapter first proves it is inside WSL. It then reuses the exact Ubuntu 24.04 Linux implementation rather than duplicating the APT logic.
+The WSL release entrypoint routes to `installers/wsl/environments/python-3.12.sh`. That adapter first proves it is inside WSL and then reuses the exact Ubuntu 24.04 Linux implementation rather than duplicating the APT logic.
 
 This means:
 
@@ -104,12 +124,18 @@ This means:
 
 ## macOS
 
-Entrypoint:
+Preferred user-facing commands:
 
 ```sh
-./installers/macos/environments/python-3.12.sh plan
-./installers/macos/environments/python-3.12.sh install --experimental
-./installers/macos/environments/python-3.12.sh verify
+./installers/macos/devkit-wulf.sh plan python@3.12
+./installers/macos/devkit-wulf.sh install python@3.12 --experimental
+./installers/macos/devkit-wulf.sh verify python@3.12
+```
+
+The release entrypoint routes these operations to:
+
+```text
+installers/macos/environments/python-3.12.sh
 ```
 
 Strategy: Homebrew formula:
@@ -132,6 +158,19 @@ Every active adapter verifies:
 4. `pip --version` from the Python executable inside that temporary environment.
 
 The smoke environment is temporary and cleanup is restricted to a devkit-specific temporary directory pattern.
+
+## Routing boundary
+
+The version-specific route is intentionally implemented in the release-facing system entrypoints rather than in `bin/devkit-wulf` or `bin/devkit-wulf.ps1`:
+
+```text
+Windows entrypoint ── python@3.12 ── Windows Python adapter
+Linux entrypoint   ── python@3.12 ── Ubuntu Python adapter
+WSL entrypoint     ── python@3.12 ── WSL -> Ubuntu adapter
+macOS entrypoint   ── python@3.12 ── Homebrew Python adapter
+```
+
+Other targets continue to fall back to the existing generic internal core. This lets versioned environments gain system-native implementations without turning the core into another universal installer.
 
 ## Why the implementation differs by operating system
 
