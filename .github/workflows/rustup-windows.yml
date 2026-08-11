@@ -1,0 +1,73 @@
+name: Windows rustup-init native contract
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/rustup-windows.json'
+      - 'manifests/schema/rustup-windows.schema.json'
+      - 'lib/rustup-windows.ps1'
+      - 'installers/windows/environments/rust-stable.ps1'
+      - 'tests/test_rustup_windows.ps1'
+      - 'tests/validate_rustup_windows.py'
+      - 'docs/environments/rustup-windows.md'
+      - '.github/workflows/rustup-windows.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifests/rustup-windows.json'
+      - 'manifests/schema/rustup-windows.schema.json'
+      - 'lib/rustup-windows.ps1'
+      - 'installers/windows/environments/rust-stable.ps1'
+      - 'tests/test_rustup_windows.ps1'
+      - 'tests/validate_rustup_windows.py'
+      - 'docs/environments/rustup-windows.md'
+      - '.github/workflows/rustup-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate native Windows rustup contract
+        run: python3 tests/validate_rustup_windows.py
+
+  windows-offline:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse native PowerShell contract
+        shell: pwsh
+        run: |
+          foreach ($file in @(
+            'lib/rustup-windows.ps1',
+            'installers/windows/environments/rust-stable.ps1',
+            'tests/test_rustup_windows.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$file: $($_.Message)" }
+              exit 1
+            }
+          }
+
+      - name: Experimental gate precedes checksum/network work
+        shell: pwsh
+        run: |
+          try {
+            & .\installers\windows\environments\rust-stable.ps1 install
+            throw 'rust@stable unexpectedly installed without -Experimental'
+          } catch {
+            if ($_.Exception.Message -notmatch 'install requires -Experimental') {
+              throw
+            }
+          }
+
+      - name: Run offline native rustup fixture
+        shell: pwsh
+        run: .\tests\test_rustup_windows.ps1
