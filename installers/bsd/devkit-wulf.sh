@@ -11,8 +11,8 @@ case "$(uname -s 2>/dev/null || printf unknown)" in
     *) fail "This entrypoint is for FreeBSD, OpenBSD, NetBSD or DragonFly BSD only." ;;
 esac
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+SCRIPT_DIR=$(CDPATH= cd -P "$(dirname "$0")" && pwd)
+ROOT_DIR=$(CDPATH= cd -P "$SCRIPT_DIR/../.." && pwd)
 CORE="$ROOT_DIR/bin/devkit-wulf"
 [ -f "$CORE" ] || fail "POSIX orchestrator core not found: $CORE"
 [ -x "$CORE" ] || fail "POSIX orchestrator core is not executable: $CORE"
