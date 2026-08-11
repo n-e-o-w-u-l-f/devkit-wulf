@@ -53,6 +53,7 @@
         "repository_content_template": {"type": "string", "minLength": 1},
         "repository_url": {"type": "string", "pattern": "^https://"},
         "repository_required_substrings": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "localize_key_urls": {"type": "boolean"},
         "suite_resolver": {"type": "string", "enum": ["debian-codename", "ubuntu-codename"]},
         "architecture_resolver": {"type": "string", "enum": ["dpkg"]},
         "refresh_repositories": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"}, "uniqueItems": true},
