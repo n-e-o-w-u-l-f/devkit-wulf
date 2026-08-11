@@ -58,7 +58,7 @@ case "$ACTION" in
     plan_verified_artifact flutter macos macos "$ARCH" || fail "Unable to plan verified Flutter stable artifact."
     ;;
   verify)
-    verify_flutter_stable_managed || fail "Managed Flutter stable verification failed."
+    verify_flutter_stable_managed macos || fail "Managed Flutter stable verification failed."
     printf '%s\n' 'result=verified'
     ;;
   install)
