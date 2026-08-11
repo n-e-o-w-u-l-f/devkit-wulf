@@ -1,7 +1,8 @@
 param(
     [Parameter(Position = 0)]
     [ValidateSet('plan', 'install', 'verify')]
-    [string]$Action = 'plan'
+    [string]$Action = 'plan',
+    [switch]$Experimental
 )
 
 Set-StrictMode -Version Latest
@@ -13,6 +14,9 @@ function Stop-DevkitPython312([string]$Message) {
 
 if ($env:OS -ne 'Windows_NT') {
     Stop-DevkitPython312 'This adapter is for native Windows only.'
+}
+if ($Action -eq 'install' -and -not $Experimental) {
+    Stop-DevkitPython312 'Python 3.12 remains experimental; install requires -Experimental.'
 }
 
 $RootDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
@@ -120,13 +124,15 @@ switch ($Action) {
             break
         }
 
+        $hadConfirm = Test-Path Env:PYTHON_MANAGER_CONFIRM
         $oldConfirm = $env:PYTHON_MANAGER_CONFIRM
         try {
             $env:PYTHON_MANAGER_CONFIRM = 'no'
             & $Manager install $RuntimeTag
             if ($LASTEXITCODE -ne 0) { Stop-DevkitPython312 'Python Install Manager failed to install Python 3.12.' }
         } finally {
-            $env:PYTHON_MANAGER_CONFIRM = $oldConfirm
+            if ($hadConfirm) { $env:PYTHON_MANAGER_CONFIRM = $oldConfirm }
+            else { Remove-Item Env:PYTHON_MANAGER_CONFIRM -ErrorAction SilentlyContinue }
         }
 
         if (-not (Test-Python312ManagedRuntime)) {
