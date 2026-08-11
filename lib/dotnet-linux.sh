@@ -167,6 +167,15 @@ dotnet_linux_plan() {
   printf '  mutates_host: false\n'
 }
 
+_dotnet_cleanup_staging() {
+  [ -n "${_dw_dotnet_tmp:-}" ] || return 0
+  rm -f \
+    "$_dw_dotnet_tmp/microsoft.asc" \
+    "$_dw_dotnet_tmp/microsoft.gpg" \
+    "$_dw_dotnet_tmp/repository.conf"
+  rmdir "$_dw_dotnet_tmp" 2>/dev/null || true
+}
+
 _dotnet_install_microsoft_repo() {
   _dw_dotnet_platform=$1
   _dw_dotnet_version=$2
@@ -175,7 +184,7 @@ _dotnet_install_microsoft_repo() {
   _dw_dotnet_entry=$5
   _dw_dotnet_repo=$(printf '%s' "$_dw_dotnet_entry" | jq -c '.repository')
   _dw_dotnet_tmp=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-dotnet.XXXXXX") || die "unable to create .NET staging directory"
-  trap 'rm -rf "$_dw_dotnet_tmp"' EXIT HUP INT TERM
+  trap '_dotnet_cleanup_staging' EXIT HUP INT TERM
   _dw_dotnet_staged_key=$(_dotnet_stage_key "$_dw_dotnet_repo" "$_dw_dotnet_tmp")
   _dw_dotnet_repo_staged="$_dw_dotnet_tmp/repository.conf"
   _dotnet_repository_content "$_dw_dotnet_platform" "$_dw_dotnet_arch" "$_dw_dotnet_repo" > "$_dw_dotnet_repo_staged"
@@ -197,7 +206,8 @@ _dotnet_install_microsoft_repo() {
       ;;
   esac
   install_packages "$(printf '%s' "$_dw_dotnet_target" | jq -r '.sdk_package')"
-  rm -rf "$_dw_dotnet_tmp"
+  _dotnet_cleanup_staging
+  _dw_dotnet_tmp=
   trap - EXIT HUP INT TERM
 }
 
