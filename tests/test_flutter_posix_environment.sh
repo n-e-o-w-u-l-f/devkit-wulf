@@ -3,7 +3,16 @@ set -eu
 
 ROOT_DIR=$(CDPATH= cd -P "$(dirname "$0")/.." && pwd)
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/devkit-wulf-flutter-selector.XXXXXX")
-trap 'rm -rf "$TMP_ROOT"' 0 1 2 15
+cleanup_fixture() {
+  case "$TMP_ROOT" in
+    "${TMPDIR:-/tmp}"/devkit-wulf-flutter-selector.*)
+      [ ! -L "$TMP_ROOT" ] || return 1
+      [ ! -e "$TMP_ROOT" ] || rm -r "$TMP_ROOT"
+      ;;
+    *) return 1 ;;
+  esac
+}
+trap cleanup_fixture 0 1 2 15
 HOME="$TMP_ROOT/home with spaces"
 export HOME
 mkdir -p "$HOME/develop/flutter/bin"
@@ -43,7 +52,6 @@ if verify_flutter_stable_managed macos; then fail "Linux marker incorrectly veri
 printf '%s\n' '# tamper' >> "$HOME/develop/flutter/bin/flutter"
 if verify_flutter_stable_managed linux; then fail "tampered Flutter launcher incorrectly verified"; fi
 
-# Restore a valid launcher/hash then prove a symlinked bin parent is rejected.
 cat > "$HOME/develop/flutter/bin/flutter" <<'EOF'
 #!/bin/sh
 [ "${1:-}" = --version ] || exit 2
