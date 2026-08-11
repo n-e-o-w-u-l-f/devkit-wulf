@@ -45,6 +45,7 @@ for platform, target in manifest["targets"].items():
             assert repo, (platform, version)
             assert repo["base_url"].startswith("https://packages.microsoft.com/")
             assert repo["key_url"].startswith("https://packages.microsoft.com/keys/")
+            assert repo["key_transform"] in {"gpg-dearmor", "copy"}
             normalized = repo["key_fingerprint"].replace(" ", "")
             assert len(normalized) == 40
             int(normalized, 16)
@@ -55,7 +56,17 @@ assert manifest["targets"]["debian"]["versions"]["12"]["repository"]["suite"] ==
 assert manifest["targets"]["debian"]["versions"]["13"]["repository"]["suite"] == "trixie"
 assert manifest["targets"]["debian"]["versions"]["12"]["repository"]["key_url"].endswith("microsoft.asc")
 assert manifest["targets"]["debian"]["versions"]["13"]["repository"]["key_url"].endswith("microsoft-2025.asc")
-assert manifest["targets"]["opensuse-leap"]["versions"]["16"]["architectures"] == ["amd64", "arm64"]
+assert manifest["targets"]["debian"]["versions"]["12"]["repository"]["key_transform"] == "gpg-dearmor"
+assert manifest["targets"]["debian"]["versions"]["13"]["repository"]["key_transform"] == "gpg-dearmor"
+
+opensuse = manifest["targets"]["opensuse-leap"]
+opensuse_repo = opensuse["versions"]["16"]["repository"]
+assert opensuse["versions"]["16"]["architectures"] == ["amd64", "arm64"]
+assert opensuse["prerequisites"] == ["libicu"]
+assert opensuse_repo["repository_url"] == "https://packages.microsoft.com/config/opensuse/16/prod.repo"
+assert opensuse_repo["key_transform"] == "copy"
+assert opensuse_repo["repository_id"] == "packages-microsoft-com-prod"
+
 assert manifest["targets"]["rhel"]["subscription_required"] is True
 assert set(manifest["targets"]["rhel"]["versions"]["10"]["architectures"]) == {"amd64", "arm64", "s390x", "ppc64le"}
 
