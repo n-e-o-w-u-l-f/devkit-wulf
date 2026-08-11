@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/go-windows.schema.json",
+  "title": "devkit-wulf native Windows Go artifact contract",
+  "type": "object",
+  "required": ["schema_version", "research_date", "support", "publisher", "source", "release_index_url", "download_base_url", "version_pattern", "target"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "support": {"const": "experimental"},
+    "publisher": {"const": "The Go Authors / Google"},
+    "source": {"const": "https://go.dev/dl/"},
+    "release_index_url": {"const": "https://go.dev/dl/?mode=json"},
+    "download_base_url": {"const": "https://go.dev/dl"},
+    "version_pattern": {"type": "string", "minLength": 10},
+    "target": {
+      "type": "object",
+      "required": ["platform", "architectures", "kind", "archive_format", "filename_pattern", "root_directory", "destination_template", "path_directory_template", "marker_relative_path", "critical_files", "integrity", "privileged", "path_mutation"],
+      "properties": {
+        "platform": {"const": "windows"},
+        "architectures": {
+          "type": "object",
+          "required": ["amd64", "arm64"],
+          "properties": {"amd64": {"const": "amd64"}, "arm64": {"const": "arm64"}},
+          "additionalProperties": false
+        },
+        "kind": {"const": "archive"},
+        "archive_format": {"const": "zip"},
+        "filename_pattern": {"type": "string", "minLength": 20},
+        "root_directory": {"const": "go"},
+        "destination_template": {"const": "{localappdata}/devkit-wulf/go"},
+        "path_directory_template": {"const": "{localappdata}/devkit-wulf/go/bin"},
+        "marker_relative_path": {"const": ".devkit-wulf-artifact.json"},
+        "critical_files": {"const": ["bin/go.exe", "bin/gofmt.exe"]},
+        "integrity": {"const": "sha256-release-metadata"},
+        "privileged": {"const": false},
+        "path_mutation": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
