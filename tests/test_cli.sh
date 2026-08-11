@@ -16,6 +16,7 @@ sh "$CLI" plan base | grep '^mutates_host=false$'
 sh "$CLI" plan go | grep '^environment=go$'
 sh "$CLI" doctor | grep 'repository manifest JSON parse: PASS'
 sh "$CLI" doctor | grep '.NET Linux manifest JSON parse: PASS'
+sh "$CLI" doctor | grep 'JetBrains Toolbox manifest JSON parse: PASS'
 sh "$CLI" doctor | grep 'doctor completed'
 
 # Repository/native-package metadata may resolve a safer effective strategy without
@@ -49,6 +50,16 @@ sh "$CLI" list --platform linuxmint | grep -E '^dotnet[[:space:]]+experimental[[
 sh "$CLI" list --platform rocky | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
 sh "$CLI" list --platform almalinux | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
 sh "$CLI" list --platform opensuse-tumbleweed | grep -E '^dotnet[[:space:]]+experimental[[:space:]]+manual$'
+
+# JetBrains Toolbox Linux routing is deliberately exact-platform. Only the
+# explicitly declared Debian/Fedora entries may activate the managed Toolbox
+# adapter; Debian/RHEL/openSUSE derivatives do not inherit desktop support.
+sh "$CLI" list --platform debian | grep -E '^jetbrains[[:space:]]+experimental[[:space:]]+jetbrains-toolbox$'
+sh "$CLI" list --platform fedora | grep -E '^jetbrains[[:space:]]+experimental[[:space:]]+jetbrains-toolbox$'
+sh "$CLI" list --platform ubuntu | grep -E '^jetbrains[[:space:]]+unsupported[[:space:]]+unsupported$'
+sh "$CLI" list --platform linuxmint | grep -E '^jetbrains[[:space:]]+unsupported[[:space:]]+unsupported$'
+sh "$CLI" list --platform rhel | grep -E '^jetbrains[[:space:]]+unsupported[[:space:]]+unsupported$'
+sh "$CLI" list --platform opensuse-leap | grep -E '^jetbrains[[:space:]]+unsupported[[:space:]]+unsupported$'
 
 if sh "$CLI" plan definitely-not-an-environment >/dev/null 2>&1; then
   echo "unknown environment unexpectedly succeeded" >&2
