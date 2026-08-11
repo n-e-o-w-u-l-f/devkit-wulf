@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/n-e-o-w-u-l-f/devkit-wulf/manifests/schema/dotnet-linux.schema.json",
+  "title": "devkit-wulf .NET Linux adapter matrix",
+  "type": "object",
+  "required": ["schema_version", "research_date", "publisher", "product", "sdk_major", "support", "targets", "verification", "non_inheritance_policy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "research_date": {"type": "string", "format": "date"},
+    "publisher": {"type": "string", "minLength": 10},
+    "product": {"const": ".NET SDK"},
+    "sdk_major": {"const": "10.0"},
+    "support": {"const": "experimental"},
+    "targets": {
+      "type": "object",
+      "required": ["debian", "fedora", "rhel", "opensuse-leap"],
+      "additionalProperties": false,
+      "properties": {
+        "debian": {"$ref": "#/$defs/target"},
+        "fedora": {"$ref": "#/$defs/target"},
+        "rhel": {"$ref": "#/$defs/target"},
+        "opensuse-leap": {"$ref": "#/$defs/target"}
+      }
+    },
+    "verification": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 5}},
+    "non_inheritance_policy": {"type": "array", "minItems": 5, "items": {"type": "string", "minLength": 10}, "uniqueItems": true}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "required": ["base_url", "key_url", "key_fingerprint", "key_destination", "repository_file"],
+      "properties": {
+        "base_url": {"type": "string", "pattern": "^https://packages\\.microsoft\\.com/"},
+        "suite": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "key_url": {"type": "string", "pattern": "^https://packages\\.microsoft\\.com/keys/microsoft(-2025)?\\.asc$"},
+        "key_fingerprint": {"type": "string", "pattern": "^[A-F0-9 ]{40,60}$"},
+        "key_destination": {"type": "string", "pattern": "^/"},
+        "repository_file": {"type": "string", "pattern": "^/"},
+        "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}
+      },
+      "additionalProperties": false
+    },
+    "version": {
+      "type": "object",
+      "required": ["architectures"],
+      "properties": {
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["amd64", "arm64", "s390x", "ppc64le"]}
+        },
+        "repository": {"$ref": "#/$defs/repository"}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["documentation", "package_manager", "package_source", "sdk_package", "versions", "package_signature_required", "repository_signature_required", "tls_verification_required"],
+      "properties": {
+        "documentation": {"type": "string", "pattern": "^https://learn\\.microsoft\\.com/"},
+        "package_catalog": {"type": "string", "pattern": "^https://packages\\.fedoraproject\\.org/"},
+        "architecture_policy": {"type": "string", "pattern": "^https://access\\.redhat\\.com/"},
+        "package_manager": {"enum": ["apt", "dnf", "zypper"]},
+        "package_source": {"enum": ["microsoft", "distribution", "distribution-appstream"]},
+        "sdk_package": {"const": "dotnet-sdk-10.0"},
+        "subscription_required": {"type": "boolean"},
+        "versions": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {"^[0-9]+$": {"$ref": "#/$defs/version"}},
+          "additionalProperties": false
+        },
+        "package_signature_required": {"const": true},
+        "repository_signature_required": {"const": true},
+        "tls_verification_required": {"const": true}
+      },
+      "additionalProperties": false
+    }
+  }
+}
