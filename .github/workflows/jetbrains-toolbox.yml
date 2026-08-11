@@ -3,9 +3,11 @@ name: jetbrains-toolbox
 on:
   pull_request:
     paths:
+      - 'bin/devkit-wulf'
       - 'manifests/jetbrains-toolbox.json'
       - 'manifests/schema/jetbrains-toolbox.schema.json'
       - 'lib/jetbrains-toolbox.sh'
+      - 'tests/test_cli.sh'
       - 'tests/validate_jetbrains_toolbox.py'
       - 'tests/test_jetbrains_toolbox.sh'
       - 'docs/environments/jetbrains-toolbox.md'
@@ -13,11 +15,14 @@ on:
   push:
     branches: [main]
     paths:
+      - 'bin/devkit-wulf'
       - 'manifests/jetbrains-toolbox.json'
       - 'manifests/schema/jetbrains-toolbox.schema.json'
       - 'lib/jetbrains-toolbox.sh'
+      - 'tests/test_cli.sh'
       - 'tests/validate_jetbrains_toolbox.py'
       - 'tests/test_jetbrains_toolbox.sh'
+      - 'docs/environments/jetbrains-toolbox.md'
       - '.github/workflows/jetbrains-toolbox.yml'
 
 permissions:
@@ -51,7 +56,9 @@ jobs:
           Draft202012Validator(schema).validate(manifest)
           print('JetBrains Toolbox JSON Schema validation passed')
           PY
-      - name: ShellCheck JetBrains helper and fixture
-        run: shellcheck lib/jetbrains-toolbox.sh tests/test_jetbrains_toolbox.sh
+      - name: ShellCheck central CLI and JetBrains paths
+        run: shellcheck bin/devkit-wulf lib/jetbrains-toolbox.sh tests/test_cli.sh tests/test_jetbrains_toolbox.sh
+      - name: Central CLI smoke tests
+        run: sh tests/test_cli.sh
       - name: Offline JetBrains artifact integration test
         run: sh tests/test_jetbrains_toolbox.sh

@@ -4,82 +4,91 @@ Research date: **2026-08-11**
 
 ## Support boundary
 
-The existing `jetbrains` environment remains `experimental`.
+The `jetbrains` environment remains **experimental**.
 
-The current environment catalog declares Linux `official-archive` entries for:
+The central POSIX CLI now activates the managed Toolbox adapter only for the exact Linux platform entries already present in the environment catalog:
 
 - Debian: `amd64`, `arm64`;
 - Fedora: `amd64`, `arm64`.
 
-The standalone Toolbox artifact manifest provides the corresponding Linux amd64/arm64 download-key mapping. That architecture mapping is not permission to generalize the adapter to every Linux distribution.
+No Linux-family inheritance is used for JetBrains Toolbox. Ubuntu, Linux Mint, Kali, RHEL, Rocky, AlmaLinux, openSUSE and other Linux platforms remain unsupported until they receive their own researched environment entry.
 
-Windows retains its native package path and macOS retains its separately declared package-manager path. Linux derivatives or other distributions require an explicit environment entry before central automatic routing.
+Windows retains its native package path and macOS retains its separately declared package-manager path.
 
-The helper is deliberately separate from central CLI activation until the routing change is merged atomically. Until then, the normal Linux `official-archive` path remains fail-closed.
+The Linux Toolbox route is desktop-oriented and is **not enabled inside WSL2**. On WSL2, central plan/install/verify fail closed rather than installing a Linux desktop Toolbox instance implicitly.
+
+## Central CLI
+
+On exact native Debian/Fedora targets the effective strategy is:
+
+```text
+jetbrains-toolbox
+```
+
+Typical flow:
+
+```sh
+devkit-wulf plan jetbrains
+devkit-wulf install jetbrains --experimental
+devkit-wulf verify jetbrains
+```
+
+`install` still requires explicit experimental opt-in.
+
+`plan jetbrains` resolves the current Toolbox release from JetBrains' pinned release API, but performs no persistent host mutation. `verify jetbrains` is offline with respect to release discovery and validates only the devkit-managed installation.
 
 ## Official release service
 
-JetBrains publishes a machine-readable product release service. The Toolbox App product code is `TBA`.
-
-The pinned release endpoint is:
+Pinned endpoint:
 
 ```text
 https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release
 ```
 
-The Linux mappings used by this adapter are:
+Product code: `TBA`.
+
+Linux download mappings:
 
 ```text
 amd64 -> linux
 arm64 -> linuxARM64
 ```
 
-Each selected object must contain both an archive `link` and its `checksumLink`.
-
-The adapter accepts those URLs only from:
+Each selected release must provide an archive `link` and `checksumLink`. Accepted HTTPS download hosts are limited to:
 
 ```text
 download.jetbrains.com
 download-cdn.jetbrains.com
 ```
 
-HTTPS is mandatory.
+## Archive and integrity contract
 
-## Archive contract
-
-The Linux Toolbox download is expected to be a `tar.gz` archive with one versioned root:
+The Linux archive must be a `tar.gz` with the expected versioned root:
 
 ```text
 jetbrains-toolbox-<version>/
 ```
 
-The selected executable is exactly:
+Only this executable is selected:
 
 ```text
 jetbrains-toolbox-<version>/jetbrains-toolbox
 ```
 
-The release-service version must satisfy the manifest's numeric release pattern before it is used in the expected root name.
+The adapter rejects absolute paths, backslash paths, `..` traversal and entries outside the expected root. The extracted executable must be a regular non-symlink executable.
 
-Before extraction, every archive entry must be relative, remain under the exact expected versioned root, contain no `..` traversal component and contain no backslash path separator.
+Integrity sequence:
 
-Only the expected Toolbox executable is extracted. It must be a regular non-symlink executable.
-
-## Integrity
-
-The adapter performs this integrity sequence:
-
-1. download release metadata from the pinned JetBrains service;
-2. resolve the exact Linux architecture key;
-3. validate the selected archive/checksum hosts;
-4. download checksum metadata;
-5. require a valid SHA-256 value;
-6. download the archive;
-7. calculate and compare the local archive SHA-256;
-8. inspect archive paths;
-9. extract only the expected executable;
-10. calculate and record the executable SHA-256;
-11. run managed verification before installation is considered complete.
+1. resolve release metadata from the pinned JetBrains service;
+2. resolve the exact architecture download key;
+3. validate archive/checksum hosts;
+4. download and validate SHA-256 metadata;
+5. download the archive and verify SHA-256;
+6. validate archive paths;
+7. extract only the expected executable;
+8. calculate the executable SHA-256;
+9. install the user-local binary;
+10. run managed verification before recording success.
 
 No checksum or TLS bypass is supported.
 
@@ -97,82 +106,69 @@ Ownership marker:
 $HOME/.local/bin/.jetbrains-toolbox.devkit-wulf.json
 ```
 
-Before installation, `$HOME/.local/bin` must already exist, be writable, not be a symbolic link and already be present in the current `PATH`.
+`$HOME/.local/bin` must already exist, be writable, not be a symbolic link and already be present in the current `PATH`.
 
-The helper uses no root privileges and does not silently modify PATH or shell startup files.
+The adapter uses no root privileges and performs no PATH or shell-startup mutation.
 
 ## Managed verification
 
-`verify_jetbrains_toolbox <arch>` is offline with respect to release discovery. It validates the installed state rather than asking the current release service what is newest.
+Central `verify jetbrains` delegates to `verify_jetbrains_toolbox` on the exact Debian/Fedora native route.
 
 Verification requires:
 
-- a regular non-symlink executable;
-- a regular non-symlink devkit ownership marker;
-- `environment: jetbrains` and publisher `JetBrains s.r.o.`;
-- a syntactically valid recorded version;
-- a valid recorded archive SHA-256;
-- the current executable SHA-256 to equal the marker's recorded executable SHA-256;
-- the managed executable's `--version` command to succeed and return output.
+- a regular non-symlink managed executable;
+- a regular non-symlink ownership marker;
+- marker environment `jetbrains` and publisher `JetBrains s.r.o.`;
+- a valid recorded version and archive SHA-256;
+- the current executable SHA-256 to match the marker;
+- the managed executable's `--version` command to succeed with output.
 
-A modified executable or missing marker fails verification even when another `jetbrains-toolbox` command exists elsewhere in PATH.
+A modified executable or missing marker fails verification. A different global `jetbrains-toolbox` executable cannot satisfy the managed gate.
+
+On unsupported Linux platforms, `verify jetbrains` fails closed instead of falling back to generic PATH verification. macOS retains its exact separately declared generic package-manager verification path.
 
 ## Conflict and idempotency policy
 
-The helper never adopts or overwrites an arbitrary existing Toolbox executable.
+The adapter never adopts or overwrites an arbitrary existing Toolbox executable.
 
-A second installation is idempotent only when the current release still matches the exact devkit-owned marker/source/archive hash and the installed executable hash remains unchanged.
+A repeated installation is idempotent only when the current release still matches the exact devkit-owned version/source/archive hash and the executable hash remains unchanged.
 
-A newly published Toolbox release therefore does not silently replace an existing managed installation. An explicit future upgrade/migration workflow is required.
+A newly published Toolbox release does not silently overwrite an existing managed installation; an explicit future upgrade/migration path is required.
 
-## State tracking
+## State and cleanup
 
-The helper writes append-only records to:
+Detailed Toolbox records are appended to:
 
 ```text
 <devkit-wulf-state>/jetbrains-toolbox.jsonl
 ```
 
-Both state directory and state file refuse symbolic links.
+The state directory/file refuse symbolic links. Central CLI state is recorded only after managed verification succeeds.
 
-Records include publisher, environment ID, action, version, source/checksum URLs, destination, archive/executable SHA-256, creation ownership and `path_mutation: false`.
-
-## Staging cleanup
-
-Installation staging is created under the already-approved `$HOME/.local/bin` directory. Cleanup is bounded to the exact archive, checksum file, archive listing, extracted Toolbox executable, versioned extraction directories and marker staging file created by the current transaction.
-
-The helper no longer uses a recursive deletion of the whole staging tree.
-
-## Verification contract
-
-The environment-level command remains:
-
-```text
-jetbrains-toolbox --version
-```
-
-The managed helper additionally binds that execution to the devkit-owned file and marker hashes. Toolbox managing an IDE later is not proof that every JetBrains IDE is supported on the host; IDE requirements remain product-specific.
+Staging cleanup is bounded to the exact files/directories created by the transaction; the Toolbox helper does not recursively delete an arbitrary staging tree.
 
 ## Current integration status
 
-Implemented:
+Implemented and centrally routed:
 
 - manifest and JSON Schema;
 - verified release resolver;
 - Linux amd64/arm64 download mapping;
 - checksum enforcement;
 - archive safety gate;
-- user-local installation helper;
+- user-local installation;
 - marker/idempotency gate;
 - offline managed verification;
-- bounded staging cleanup;
-- offline integration fixture;
-- semantic cross-check against the existing `jetbrains` environment.
+- exact Debian/Fedora central routing;
+- WSL2 fail-closed desktop gate;
+- central CLI regression tests;
+- dedicated workflow covering central CLI + standalone offline fixture.
 
-Still separate from this hardening change:
+Not yet implemented:
 
-- automatic routing from `devkit-wulf install jetbrains` to the helper;
-- removal ownership semantics.
+- removal ownership semantics;
+- automatic upgrade/migration between Toolbox releases;
+- additional Linux distribution targets without separate research.
 
 ## Upstream references
 
