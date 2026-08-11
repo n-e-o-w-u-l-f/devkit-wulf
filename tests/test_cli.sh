@@ -19,10 +19,10 @@ sh "$CLI" doctor | grep 'doctor completed'
 
 # Repository/native-package metadata may resolve a safer effective strategy without
 # changing the experimental support status in environments.json.
-sh "$CLI" list --platform fedora | grep '^opentofu[[:space:]]\+experimental[[:space:]]\+package-manager$'
-sh "$CLI" list --platform debian | grep '^opentofu[[:space:]]\+experimental[[:space:]]\+vendor-repository$'
-sh "$CLI" list --platform rhel | grep '^opentofu[[:space:]]\+experimental[[:space:]]\+vendor-repository$'
-sh "$CLI" list --platform opensuse-leap | grep '^opentofu[[:space:]]\+experimental[[:space:]]\+vendor-repository$'
+sh "$CLI" list --platform fedora | grep -E '^opentofu[[:space:]]+experimental[[:space:]]+package-manager$'
+sh "$CLI" list --platform debian | grep -E '^opentofu[[:space:]]+experimental[[:space:]]+vendor-repository$'
+sh "$CLI" list --platform rhel | grep -E '^opentofu[[:space:]]+experimental[[:space:]]+vendor-repository$'
+sh "$CLI" list --platform opensuse-leap | grep -E '^opentofu[[:space:]]+experimental[[:space:]]+vendor-repository$'
 
 if sh "$CLI" plan definitely-not-an-environment >/dev/null 2>&1; then
   echo "unknown environment unexpectedly succeeded" >&2
