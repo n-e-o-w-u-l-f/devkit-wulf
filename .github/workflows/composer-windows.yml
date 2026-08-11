@@ -1,0 +1,64 @@
+name: composer-windows
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/composer-windows.json'
+      - 'manifests/schema/composer-windows.schema.json'
+      - 'lib/composer-windows.ps1'
+      - 'tests/validate_composer_windows.py'
+      - 'tests/test_composer_windows.ps1'
+      - 'docs/environments/composer-windows.md'
+      - '.github/workflows/composer-windows.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifests/composer-windows.json'
+      - 'manifests/schema/composer-windows.schema.json'
+      - 'lib/composer-windows.ps1'
+      - 'tests/validate_composer_windows.py'
+      - 'tests/test_composer_windows.ps1'
+      - '.github/workflows/composer-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate Composer semantic contract
+        shell: pwsh
+        run: python tests/validate_composer_windows.py
+      - name: Validate Composer JSON Schema
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check jsonschema
+          @'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          root = Path('.')
+          schema = json.loads((root / 'manifests/schema/composer-windows.schema.json').read_text())
+          manifest = json.loads((root / 'manifests/composer-windows.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(manifest)
+          print('Composer Windows JSON Schema validation passed')
+          '@ | python -
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      - name: Analyze Composer helper and fixture
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path lib/composer-windows.ps1,tests/test_composer_windows.ps1 -Severity Error,Warning
+          $results | Format-Table -AutoSize
+          $blocking = @($results | Where-Object Severity -eq 'Error')
+          if ($blocking.Count -gt 0) { throw 'Blocking PSScriptAnalyzer errors detected' }
+      - name: Offline Composer PHAR integration test
+        shell: pwsh
+        run: .\tests\test_composer_windows.ps1
